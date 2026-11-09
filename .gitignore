@@ -1,0 +1,11 @@
+.local/
+node_modules/
+dist/
+.DS_Store
+backtest/cache/
+CLAUDE.md
+app/static/hub/build/
+app/static/hub/screenshots/
+app/.forge/
+graphify-out/
+*.log
