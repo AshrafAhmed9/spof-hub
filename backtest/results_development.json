@@ -1,0 +1,281 @@
+{
+ "label": "development",
+ "fetch_date": "2026-11-09T09:09:17.015640+00:00",
+ "window": [
+  "2018-01-01",
+  "2023-06-30"
+ ],
+ "projects": {
+  "KAFKA": {
+   "decayed_conc": {
+    "rate_hi": 0.8987341772151899,
+    "rate_lo": 0.7051282051282052,
+    "n_hi": 79,
+    "n_lo": 78,
+    "diff": 0.1936059720869847,
+    "ci": [
+     0.06221719457013575,
+     0.29565131837859115
+    ],
+    "leavers_hi": 26,
+    "leavers_lo": 27
+   },
+   "count_share": {
+    "rate_hi": 0.9156626506024096,
+    "rate_lo": 0.7142857142857143,
+    "n_hi": 83,
+    "n_lo": 91,
+    "diff": 0.2013769363166953,
+    "ci": [
+     0.09511993382961126,
+     0.27828746177370034
+    ],
+    "leavers_hi": 28,
+    "leavers_lo": 28
+   },
+   "assignee": {
+    "rate_hi": 0.75,
+    "rate_lo": 0.8153153153153153,
+    "n_hi": 8,
+    "n_lo": 222,
+    "diff": -0.06531531531531531,
+    "ci": [
+     -0.38703703703703707,
+     0.2216748768472906
+    ],
+    "leavers_hi": 6,
+    "leavers_lo": 40
+   },
+   "middle_0.25_0.5": {
+    "n": 73,
+    "rate": 0.8356164383561644
+   },
+   "coverage": {
+    "conc_hi": 79,
+    "hi_not_assigned_to_leaver": 75,
+    "hi_assigned_to_leaver": 4,
+    "hi_not_assigned_and_unresolved_at_T": 73
+   },
+   "secondary_unresolved_at_T": {
+    "rate_hi": 0.9078947368421053,
+    "rate_lo": 0.7323943661971831,
+    "n_hi": 76,
+    "n_lo": 71,
+    "diff": 0.1755003706449222,
+    "ci": [
+     0.04285714285714293,
+     0.28413163897034865
+    ]
+   },
+   "n_pairs": 230,
+   "n_leavers_in_pairs": 40,
+   "n_items": 7469,
+   "n_tail_items": 6289,
+   "n_leavers": 47,
+   "dropped_no_post_comment": 3419,
+   "truncated_comment_items": 0
+  },
+  "FLINK": {
+   "decayed_conc": {
+    "rate_hi": 0.8,
+    "rate_lo": 0.6633663366336634,
+    "n_hi": 245,
+    "n_lo": 303,
+    "diff": 0.13663366336633664,
+    "ci": [
+     0.06579434222476377,
+     0.20394736842105265
+    ],
+    "leavers_hi": 82,
+    "leavers_lo": 87
+   },
+   "count_share": {
+    "rate_hi": 0.8073089700996677,
+    "rate_lo": 0.674074074074074,
+    "n_hi": 301,
+    "n_lo": 270,
+    "diff": 0.13323489602559369,
+    "ci": [
+     0.061920302301614605,
+     0.19499710256905545
+    ],
+    "leavers_hi": 90,
+    "leavers_lo": 86
+   },
+   "assignee": {
+    "rate_hi": 0.8,
+    "rate_lo": 0.719562243502052,
+    "n_hi": 65,
+    "n_lo": 731,
+    "diff": 0.08043775649794804,
+    "ci": [
+     -0.021428571428571463,
+     0.16724496877168626
+    ],
+    "leavers_hi": 48,
+    "leavers_lo": 121
+   },
+   "middle_0.25_0.5": {
+    "n": 248,
+    "rate": 0.7298387096774194
+   },
+   "coverage": {
+    "conc_hi": 245,
+    "hi_not_assigned_to_leaver": 212,
+    "hi_assigned_to_leaver": 33,
+    "hi_not_assigned_and_unresolved_at_T": 208
+   },
+   "secondary_unresolved_at_T": {
+    "rate_hi": 0.8059071729957806,
+    "rate_lo": 0.6742424242424242,
+    "n_hi": 237,
+    "n_lo": 264,
+    "diff": 0.13166474875335643,
+    "ci": [
+     0.05375618533513271,
+     0.2063492063492064
+    ]
+   },
+   "n_pairs": 796,
+   "n_leavers_in_pairs": 123,
+   "n_items": 24125,
+   "n_tail_items": 8868,
+   "n_leavers": 158,
+   "dropped_no_post_comment": 22093,
+   "truncated_comment_items": 0
+  },
+  "HBASE": {
+   "decayed_conc": {
+    "rate_hi": 0.8360655737704918,
+    "rate_lo": 0.5783132530120482,
+    "n_hi": 61,
+    "n_lo": 83,
+    "diff": 0.2577523207584437,
+    "ci": [
+     0.10730211817168334,
+     0.390549662487946
+    ],
+    "leavers_hi": 37,
+    "leavers_lo": 34
+   },
+   "count_share": {
+    "rate_hi": 0.8382352941176471,
+    "rate_lo": 0.569620253164557,
+    "n_hi": 68,
+    "n_lo": 79,
+    "diff": 0.2686150409530901,
+    "ci": [
+     0.11802311285960176,
+     0.4065018060572382
+    ],
+    "leavers_hi": 40,
+    "leavers_lo": 35
+   },
+   "assignee": {
+    "rate_hi": 0.7894736842105263,
+    "rate_lo": 0.696969696969697,
+    "n_hi": 38,
+    "n_lo": 165,
+    "diff": 0.09250398724082931,
+    "ci": [
+     -0.03774356179315974,
+     0.2161509765196401
+    ],
+    "leavers_hi": 29,
+    "leavers_lo": 52
+   },
+   "middle_0.25_0.5": {
+    "n": 59,
+    "rate": 0.7796610169491526
+   },
+   "coverage": {
+    "conc_hi": 61,
+    "hi_not_assigned_to_leaver": 40,
+    "hi_assigned_to_leaver": 21,
+    "hi_not_assigned_and_unresolved_at_T": 38
+   },
+   "secondary_unresolved_at_T": {
+    "rate_hi": 0.8333333333333334,
+    "rate_lo": 0.5833333333333334,
+    "n_hi": 54,
+    "n_lo": 60,
+    "diff": 0.25,
+    "ci": [
+     0.11306042884990253,
+     0.38788752703677
+    ]
+   },
+   "n_pairs": 203,
+   "n_leavers_in_pairs": 66,
+   "n_items": 8094,
+   "n_tail_items": 2570,
+   "n_leavers": 85,
+   "dropped_no_post_comment": 8031,
+   "truncated_comment_items": 0
+  }
+ },
+ "pooled": {
+  "decayed_conc": {
+   "rate_hi": 0.825974025974026,
+   "rate_lo": 0.6551724137931034,
+   "n_hi": 385,
+   "n_lo": 464,
+   "diff": 0.1708016121809226,
+   "ci": [
+    0.1125467289719626,
+    0.224096250070276
+   ],
+   "leavers_hi": 145,
+   "leavers_lo": 148
+  },
+  "count_share": {
+   "rate_hi": 0.831858407079646,
+   "rate_lo": 0.6636363636363637,
+   "n_hi": 452,
+   "n_lo": 440,
+   "diff": 0.1682220434432823,
+   "ci": [
+    0.11303157354325322,
+    0.21830985915492962
+   ],
+   "leavers_hi": 158,
+   "leavers_lo": 149
+  },
+  "assignee": {
+   "rate_hi": 0.7927927927927928,
+   "rate_lo": 0.7352415026833632,
+   "n_hi": 111,
+   "n_lo": 1118,
+   "diff": 0.05755129010942961,
+   "ci": [
+    -0.01831651402904977,
+    0.1283317261330762
+   ],
+   "leavers_hi": 83,
+   "leavers_lo": 213
+  },
+  "middle_0.25_0.5": {
+   "n": 380,
+   "rate": 0.7578947368421053
+  },
+  "coverage": {
+   "conc_hi": 385,
+   "hi_not_assigned_to_leaver": 327,
+   "hi_assigned_to_leaver": 58,
+   "hi_not_assigned_and_unresolved_at_T": 319
+  },
+  "secondary_unresolved_at_T": {
+   "rate_hi": 0.8310626702997275,
+   "rate_lo": 0.6708860759493671,
+   "n_hi": 367,
+   "n_lo": 395,
+   "diff": 0.16017659435036036,
+   "ci": [
+    0.09793711929332471,
+    0.21938977677981775
+   ]
+  },
+  "n_pairs": 1229,
+  "n_leavers_in_pairs": 229
+ }
+}

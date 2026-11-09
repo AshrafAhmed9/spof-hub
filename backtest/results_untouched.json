@@ -1,0 +1,419 @@
+{
+ "label": "untouched",
+ "fetch_date": "2026-11-09T09:02:35.085516+00:00",
+ "window": [
+  "2018-01-01",
+  "2023-06-30"
+ ],
+ "projects": {
+  "SPARK": {
+   "decayed_conc": {
+    "rate_hi": 0.8103448275862069,
+    "rate_lo": 0.5357142857142857,
+    "n_hi": 58,
+    "n_lo": 56,
+    "diff": 0.27463054187192115,
+    "ci": [
+     0.1122004357298475,
+     0.44684684684684683
+    ],
+    "leavers_hi": 39,
+    "leavers_lo": 26
+   },
+   "count_share": {
+    "rate_hi": 0.7761194029850746,
+    "rate_lo": 0.5490196078431373,
+    "n_hi": 67,
+    "n_lo": 51,
+    "diff": 0.22709979514193734,
+    "ci": [
+     0.055952380952380976,
+     0.4130010834236186
+    ],
+    "leavers_hi": 39,
+    "leavers_lo": 27
+   },
+   "assignee": {
+    "rate_hi": 0.625,
+    "rate_lo": 0.7046979865771812,
+    "n_hi": 8,
+    "n_lo": 149,
+    "diff": -0.07969798657718119,
+    "ci": [
+     -0.460536398467433,
+     0.2941176470588235
+    ],
+    "leavers_hi": 8,
+    "leavers_lo": 50
+   },
+   "middle_0.25_0.5": {
+    "n": 43,
+    "rate": 0.7674418604651163
+   },
+   "coverage": {
+    "conc_hi": 58,
+    "hi_not_assigned_to_leaver": 53,
+    "hi_assigned_to_leaver": 5,
+    "hi_not_assigned_and_unresolved_at_T": 44
+   },
+   "secondary_unresolved_at_T": {
+    "rate_hi": 0.8478260869565217,
+    "rate_lo": 0.5853658536585366,
+    "n_hi": 46,
+    "n_lo": 41,
+    "diff": 0.2624602332979852,
+    "ci": [
+     0.09608277900960827,
+     0.42524509803921573
+    ]
+   },
+   "n_pairs": 157,
+   "n_leavers_in_pairs": 53,
+   "n_items": 21293,
+   "n_tail_items": 16928,
+   "n_leavers": 73,
+   "dropped_no_post_comment": 4936,
+   "truncated_comment_items": 0
+  },
+  "CASSANDRA": {
+   "decayed_conc": {
+    "rate_hi": 0.5862068965517241,
+    "rate_lo": 0.45,
+    "n_hi": 29,
+    "n_lo": 60,
+    "diff": 0.13620689655172408,
+    "ci": [
+     -0.0714285714285714,
+     0.3743793445878848
+    ],
+    "leavers_hi": 19,
+    "leavers_lo": 26
+   },
+   "count_share": {
+    "rate_hi": 0.6,
+    "rate_lo": 0.4482758620689655,
+    "n_hi": 35,
+    "n_lo": 58,
+    "diff": 0.15172413793103445,
+    "ci": [
+     -0.05249679897567222,
+     0.3620689655172413
+    ],
+    "leavers_hi": 21,
+    "leavers_lo": 24
+   },
+   "assignee": {
+    "rate_hi": 0.6875,
+    "rate_lo": 0.4594594594594595,
+    "n_hi": 16,
+    "n_lo": 111,
+    "diff": 0.22804054054054052,
+    "ci": [
+     -0.033333333333333326,
+     0.4929693961952027
+    ],
+    "leavers_hi": 11,
+    "leavers_lo": 32
+   },
+   "middle_0.25_0.5": {
+    "n": 38,
+    "rate": 0.47368421052631576
+   },
+   "coverage": {
+    "conc_hi": 29,
+    "hi_not_assigned_to_leaver": 23,
+    "hi_assigned_to_leaver": 6,
+    "hi_not_assigned_and_unresolved_at_T": 20
+   },
+   "secondary_unresolved_at_T": {
+    "rate_hi": 0.56,
+    "rate_lo": 0.4528301886792453,
+    "n_hi": 25,
+    "n_lo": 53,
+    "diff": 0.10716981132075476,
+    "ci": [
+     -0.09999999999999998,
+     0.35753176043557167
+    ]
+   },
+   "n_pairs": 127,
+   "n_leavers_in_pairs": 33,
+   "n_items": 4452,
+   "n_tail_items": 3127,
+   "n_leavers": 46,
+   "dropped_no_post_comment": 2173,
+   "truncated_comment_items": 0
+  },
+  "HIVE": {
+   "decayed_conc": {
+    "rate_hi": 0.7625,
+    "rate_lo": 0.7659574468085106,
+    "n_hi": 80,
+    "n_lo": 47,
+    "diff": -0.003457446808510678,
+    "ci": [
+     -0.1562901155327343,
+     0.15773809523809523
+    ],
+    "leavers_hi": 49,
+    "leavers_lo": 28
+   },
+   "count_share": {
+    "rate_hi": 0.7553191489361702,
+    "rate_lo": 0.7435897435897436,
+    "n_hi": 94,
+    "n_lo": 39,
+    "diff": 0.011729405346426636,
+    "ci": [
+     -0.16419189034837234,
+     0.1770963704630788
+    ],
+    "leavers_hi": 51,
+    "leavers_lo": 26
+   },
+   "assignee": {
+    "rate_hi": 0.9038461538461539,
+    "rate_lo": 0.7251908396946565,
+    "n_hi": 52,
+    "n_lo": 131,
+    "diff": 0.17865531415149738,
+    "ci": [
+     0.0631193158680603,
+     0.288135593220339
+    ],
+    "leavers_hi": 31,
+    "leavers_lo": 52
+   },
+   "middle_0.25_0.5": {
+    "n": 56,
+    "rate": 0.8035714285714286
+   },
+   "coverage": {
+    "conc_hi": 80,
+    "hi_not_assigned_to_leaver": 47,
+    "hi_assigned_to_leaver": 33,
+    "hi_not_assigned_and_unresolved_at_T": 39
+   },
+   "secondary_unresolved_at_T": {
+    "rate_hi": 0.7272727272727273,
+    "rate_lo": 0.6666666666666666,
+    "n_hi": 55,
+    "n_lo": 24,
+    "diff": 0.06060606060606066,
+    "ci": [
+     -0.1760869565217391,
+     0.29826086956521736
+    ]
+   },
+   "n_pairs": 183,
+   "n_leavers_in_pairs": 59,
+   "n_items": 9087,
+   "n_tail_items": 2601,
+   "n_leavers": 78,
+   "dropped_no_post_comment": 9447,
+   "truncated_comment_items": 0
+  },
+  "IGNITE": {
+   "decayed_conc": {
+    "rate_hi": 0.7373737373737373,
+    "rate_lo": 0.5897435897435898,
+    "n_hi": 99,
+    "n_lo": 39,
+    "diff": 0.1476301476301476,
+    "ci": [
+     -0.02749999999999997,
+     0.3131868131868132
+    ],
+    "leavers_hi": 38,
+    "leavers_lo": 19
+   },
+   "count_share": {
+    "rate_hi": 0.75,
+    "rate_lo": 0.5714285714285714,
+    "n_hi": 108,
+    "n_lo": 35,
+    "diff": 0.1785714285714286,
+    "ci": [
+     0.012032085561497263,
+     0.39050701186623515
+    ],
+    "leavers_hi": 41,
+    "leavers_lo": 17
+   },
+   "assignee": {
+    "rate_hi": 0.8108108108108109,
+    "rate_lo": 0.6619718309859155,
+    "n_hi": 37,
+    "n_lo": 142,
+    "diff": 0.14883897982489536,
+    "ci": [
+     -0.04830541488118423,
+     0.3517647058823529
+    ],
+    "leavers_hi": 24,
+    "leavers_lo": 42
+   },
+   "middle_0.25_0.5": {
+    "n": 41,
+    "rate": 0.6829268292682927
+   },
+   "coverage": {
+    "conc_hi": 99,
+    "hi_not_assigned_to_leaver": 78,
+    "hi_assigned_to_leaver": 21,
+    "hi_not_assigned_and_unresolved_at_T": 73
+   },
+   "secondary_unresolved_at_T": {
+    "rate_hi": 0.723404255319149,
+    "rate_lo": 0.6,
+    "n_hi": 94,
+    "n_lo": 35,
+    "diff": 0.123404255319149,
+    "ci": [
+     -0.04761904761904767,
+     0.3227344992050874
+    ]
+   },
+   "n_pairs": 179,
+   "n_leavers_in_pairs": 49,
+   "n_items": 12522,
+   "n_tail_items": 9345,
+   "n_leavers": 71,
+   "dropped_no_post_comment": 7219,
+   "truncated_comment_items": 0
+  },
+  "BEAM": {
+   "decayed_conc": {
+    "rate_hi": 0.9808695652173913,
+    "rate_lo": 0.9342105263157895,
+    "n_hi": 1150,
+    "n_lo": 608,
+    "diff": 0.046659038901601835,
+    "ci": [
+     0.009107896323086173,
+     0.07657885857491531
+    ],
+    "leavers_hi": 62,
+    "leavers_lo": 55
+   },
+   "count_share": {
+    "rate_hi": 0.9756816507000737,
+    "rate_lo": 0.9230769230769231,
+    "n_hi": 1357,
+    "n_lo": 416,
+    "diff": 0.052604727623150604,
+    "ci": [
+     0.01844839528977138,
+     0.08888152594787035
+    ],
+    "leavers_hi": 67,
+    "leavers_lo": 52
+   },
+   "assignee": {
+    "rate_hi": 0.9565217391304348,
+    "rate_lo": 0.9605263157894737,
+    "n_hi": 46,
+    "n_lo": 2280,
+    "diff": -0.004004576659038861,
+    "ci": [
+     -0.08271210507632243,
+     0.06348369870713877
+    ],
+    "leavers_hi": 23,
+    "leavers_lo": 69
+   },
+   "middle_0.25_0.5": {
+    "n": 568,
+    "rate": 0.9471830985915493
+   },
+   "coverage": {
+    "conc_hi": 1150,
+    "hi_not_assigned_to_leaver": 1116,
+    "hi_assigned_to_leaver": 34,
+    "hi_not_assigned_and_unresolved_at_T": 1115
+   },
+   "secondary_unresolved_at_T": {
+    "rate_hi": 0.981691368788143,
+    "rate_lo": 0.9353233830845771,
+    "n_hi": 1147,
+    "n_lo": 603,
+    "diff": 0.04636798570356593,
+    "ci": [
+     0.010086616550242011,
+     0.07682147926194605
+    ]
+   },
+   "n_pairs": 2326,
+   "n_leavers_in_pairs": 70,
+   "n_items": 11152,
+   "n_tail_items": 0,
+   "n_leavers": 70,
+   "dropped_no_post_comment": 9763,
+   "truncated_comment_items": 0
+  }
+ },
+ "pooled": {
+  "decayed_conc": {
+   "rate_hi": 0.9364406779661016,
+   "rate_lo": 0.8444444444444444,
+   "n_hi": 1416,
+   "n_lo": 810,
+   "diff": 0.0919962335216572,
+   "ci": [
+    0.02825126149447954,
+    0.13364238143380092
+   ],
+   "leavers_hi": 207,
+   "leavers_lo": 154
+  },
+  "count_share": {
+   "rate_hi": 0.9325707405177603,
+   "rate_lo": 0.8130217028380634,
+   "n_hi": 1661,
+   "n_lo": 599,
+   "diff": 0.11954903767969693,
+   "ci": [
+    0.07297321152742842,
+    0.15945238911130233
+   ],
+   "leavers_hi": 219,
+   "leavers_lo": 146
+  },
+  "assignee": {
+   "rate_hi": 0.8616352201257862,
+   "rate_lo": 0.9011731247778173,
+   "n_hi": 159,
+   "n_lo": 2813,
+   "diff": -0.03953790465203111,
+   "ci": [
+    -0.12025585656327709,
+    0.05356286328288762
+   ],
+   "leavers_hi": 97,
+   "leavers_lo": 245
+  },
+  "middle_0.25_0.5": {
+   "n": 746,
+   "rate": 0.8873994638069705
+  },
+  "coverage": {
+   "conc_hi": 1416,
+   "hi_not_assigned_to_leaver": 1317,
+   "hi_assigned_to_leaver": 99,
+   "hi_not_assigned_and_unresolved_at_T": 1291
+  },
+  "secondary_unresolved_at_T": {
+   "rate_hi": 0.9414776883686906,
+   "rate_lo": 0.8584656084656085,
+   "n_hi": 1367,
+   "n_lo": 756,
+   "diff": 0.08301207990308213,
+   "ci": [
+    0.02189564237800201,
+    0.12684068093855838
+   ]
+  },
+  "n_pairs": 2972,
+  "n_leavers_in_pairs": 264
+ }
+}

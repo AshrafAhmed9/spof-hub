@@ -1,0 +1,194 @@
+{
+ "pooled_ex_BEAM": {
+  "decayed_conc": {
+   "rate_hi": 0.7443609022556391,
+   "rate_lo": 0.5742574257425742,
+   "n_hi": 266,
+   "n_lo": 202,
+   "diff": 0.1701034765130649,
+   "ci": [
+    0.08543489449305197,
+    0.25987278846450734
+   ],
+   "leavers_hi": 145,
+   "leavers_lo": 99
+  },
+  "count_share": {
+   "rate_hi": 0.7401315789473685,
+   "rate_lo": 0.5628415300546448,
+   "n_hi": 304,
+   "n_lo": 183,
+   "diff": 0.1772900488927237,
+   "ci": [
+    0.09435979684576323,
+    0.27062741727546197
+   ],
+   "leavers_hi": 152,
+   "leavers_lo": 94
+  },
+  "assignee": {
+   "rate_hi": 0.8230088495575221,
+   "rate_lo": 0.6472795497185742,
+   "n_hi": 113,
+   "n_lo": 533,
+   "diff": 0.17572929983894792,
+   "ci": [
+    0.08529630547979172,
+    0.2599099099099099
+   ],
+   "leavers_hi": 74,
+   "leavers_lo": 176
+  },
+  "middle_0.25_0.5": {
+   "n": 178,
+   "rate": 0.6966292134831461
+  },
+  "coverage": {
+   "conc_hi": 266,
+   "hi_not_assigned_to_leaver": 201,
+   "hi_assigned_to_leaver": 65,
+   "hi_not_assigned_and_unresolved_at_T": 176
+  },
+  "secondary_unresolved_at_T": {
+   "rate_hi": 0.7318181818181818,
+   "rate_lo": 0.5555555555555556,
+   "n_hi": 220,
+   "n_lo": 153,
+   "diff": 0.17626262626262623,
+   "ci": [
+    0.07568027210884354,
+    0.27293844367015097
+   ]
+  },
+  "n_pairs": 646,
+  "n_leavers_in_pairs": 194
+ },
+ "BEAM_migration_notices_removed": {
+  "decayed_conc": {
+   "rate_hi": 0.826530612244898,
+   "rate_lo": 0.6875,
+   "n_hi": 98,
+   "n_lo": 96,
+   "diff": 0.139030612244898,
+   "ci": [
+    -0.0022675736961451642,
+    0.2831168831168831
+   ],
+   "leavers_hi": 39,
+   "leavers_lo": 38
+  },
+  "count_share": {
+   "rate_hi": 0.8059701492537313,
+   "rate_lo": 0.6714285714285714,
+   "n_hi": 134,
+   "n_lo": 70,
+   "diff": 0.13454157782515996,
+   "ci": [
+    -0.0031969309462915874,
+    0.28258602711157454
+   ],
+   "leavers_hi": 47,
+   "leavers_lo": 35
+  },
+  "assignee": {
+   "rate_hi": 0.9285714285714286,
+   "rate_lo": 0.7366412213740458,
+   "n_hi": 28,
+   "n_lo": 262,
+   "diff": 0.19193020719738285,
+   "ci": [
+    0.027721157766000815,
+    0.2964285714285714
+   ],
+   "leavers_hi": 14,
+   "leavers_lo": 52
+  },
+  "middle_0.25_0.5": {
+   "n": 96,
+   "rate": 0.75
+  },
+  "coverage": {
+   "conc_hi": 98,
+   "hi_not_assigned_to_leaver": 78,
+   "hi_assigned_to_leaver": 20,
+   "hi_not_assigned_and_unresolved_at_T": 77
+  },
+  "secondary_unresolved_at_T": {
+   "rate_hi": 0.8315789473684211,
+   "rate_lo": 0.6813186813186813,
+   "n_hi": 95,
+   "n_lo": 91,
+   "diff": 0.15026026604973974,
+   "ci": [
+    0.005813953488372103,
+    0.29376919701623516
+   ]
+  },
+  "n_pairs": 290,
+  "n_leavers_in_pairs": 56
+ },
+ "pooled_with_BEAM_nomig": {
+  "decayed_conc": {
+   "rate_hi": 0.7664835164835165,
+   "rate_lo": 0.610738255033557,
+   "n_hi": 364,
+   "n_lo": 298,
+   "diff": 0.15574526144995948,
+   "ci": [
+    0.0812450741942865,
+    0.23554376657824938
+   ],
+   "leavers_hi": 184,
+   "leavers_lo": 137
+  },
+  "count_share": {
+   "rate_hi": 0.7602739726027398,
+   "rate_lo": 0.5928853754940712,
+   "n_hi": 438,
+   "n_lo": 253,
+   "diff": 0.1673885971086686,
+   "ci": [
+    0.0936947280230862,
+    0.24188073307016034
+   ],
+   "leavers_hi": 199,
+   "leavers_lo": 129
+  },
+  "assignee": {
+   "rate_hi": 0.8439716312056738,
+   "rate_lo": 0.6767295597484276,
+   "n_hi": 141,
+   "n_lo": 795,
+   "diff": 0.16724207145724612,
+   "ci": [
+    0.0911139149242971,
+    0.23658949745906266
+   ],
+   "leavers_hi": 88,
+   "leavers_lo": 228
+  },
+  "middle_0.25_0.5": {
+   "n": 274,
+   "rate": 0.7153284671532847
+  },
+  "coverage": {
+   "conc_hi": 364,
+   "hi_not_assigned_to_leaver": 279,
+   "hi_assigned_to_leaver": 85,
+   "hi_not_assigned_and_unresolved_at_T": 253
+  },
+  "secondary_unresolved_at_T": {
+   "rate_hi": 0.7619047619047619,
+   "rate_lo": 0.6024590163934426,
+   "n_hi": 315,
+   "n_lo": 244,
+   "diff": 0.1594457455113193,
+   "ci": [
+    0.07443181818181821,
+    0.2446676894145593
+   ]
+  },
+  "n_pairs": 936,
+  "n_leavers_in_pairs": 250
+ }
+}
