@@ -40,7 +40,7 @@ export function topPerItem(g: Graph, now: number, items?: Item[]): ItemTop[] {
 }
 
 export function computeCoverage(g: Graph, now: number): Omit<CoverageResponse, 'mode' | 'generatedAt' | 'partial' | 'notes'> {
-  const names = new Map(g.people.map((p) => [p.id, p.name]));
+  const names = new Map(g.people.filter((p) => p.name && p.name !== p.id).map((p) => [p.id, p.name]));
   const tops = topPerItem(g, now);
   const topById = new Map(tops.map((t) => [t.itemId, t]));
   const byArea = new Map<string, Item[]>();
@@ -49,6 +49,7 @@ export function computeCoverage(g: Graph, now: number): Omit<CoverageResponse, '
   const areas: AreaCoverage[] = [];
   for (const [area, items] of byArea) {
     const t = areaTruckFactor(g, items, now);
+    if (t.considered === 0) continue; // nobody contributed to anything here, so there is nothing to lose
     const sums = new Map<string, number>();
     let unassigned = 0;
     for (const it of items) {
@@ -66,7 +67,8 @@ export function computeCoverage(g: Graph, now: number): Omit<CoverageResponse, '
       area,
       items: items.length,
       truckFactor: t.truckFactor,
-      topPerson: { id: topId, name: names.get(topId) ?? topId, share: items.length ? topSum / items.length : 0 },
+      // Share is over items with any recorded activity, the same set the truck factor uses.
+      topPerson: { id: topId, name: names.get(topId) ?? 'An unnamed account', share: t.considered ? Math.min(1, topSum / t.considered) : 0 },
       unassignedToTop: unassigned,
     });
   }
@@ -92,7 +94,7 @@ export interface SinglePoint {
 }
 
 export function findSinglePoints(g: Graph, now: number, opts: { area?: string; limit?: number; minShare?: number } = {}): SinglePoint[] {
-  const names = new Map(g.people.map((p) => [p.id, p.name]));
+  const names = new Map(g.people.filter((p) => p.name && p.name !== p.id).map((p) => [p.id, p.name]));
   const items = new Map(g.items.map((i) => [i.id, i]));
   const area = opts.area?.toLowerCase();
   const min = opts.minShare ?? SINGLE_POINT;
@@ -106,8 +108,8 @@ export function findSinglePoints(g: Graph, now: number, opts: { area?: string; l
         itemId: t.itemId,
         title: it.title,
         area: it.area ?? 'No area',
-        holder: { id: t.personId, name: names.get(t.personId) ?? t.personId, share: round(t.share) },
-        assignee: t.assignee ? (names.get(t.assignee) ?? t.assignee) : null,
+        holder: { id: t.personId, name: names.get(t.personId) ?? 'An unnamed account', share: round(t.share) },
+        assignee: t.assignee ? (names.get(t.assignee) ?? 'An unnamed account') : null,
         evidence: explainConcentration(g, t.itemId, t.personId, now).reasons,
       };
     });
