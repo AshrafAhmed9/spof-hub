@@ -1,0 +1,41 @@
+{
+  "name": "hub",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@atlaskit/banner": "^15.3.4",
+    "@atlaskit/breadcrumbs": "^17.8.6",
+    "@atlaskit/button": "^25.7.1",
+    "@atlaskit/checkbox": "^19.3.1",
+    "@atlaskit/css": "^1.1.7",
+    "@atlaskit/drawer": "^14.3.10",
+    "@atlaskit/heading": "^8.0.0",
+    "@atlaskit/icon": "^38.0.2",
+    "@atlaskit/lozenge": "^17.0.6",
+    "@atlaskit/primitives": "^22.7.0",
+    "@atlaskit/progress-bar": "^5.3.7",
+    "@atlaskit/section-message": "^10.2.6",
+    "@atlaskit/select": "^23.1.6",
+    "@atlaskit/spinner": "^20.4.4",
+    "@atlaskit/tabs": "^21.3.0",
+    "@atlaskit/textfield": "^10.3.0",
+    "@atlaskit/tokens": "^20.10.0",
+    "@atlaskit/tooltip": "^24.4.4",
+    "@forge/bridge": "^7.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6"
+  }
+}

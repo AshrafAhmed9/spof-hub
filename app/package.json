@@ -1,0 +1,23 @@
+{
+  "name": "spof-forge-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Forge backend (Node runtime) for the knowledge single-point-of-failure app.",
+  "scripts": {
+    "test": "vitest run --config src/vitest.config.ts",
+    "typecheck": "tsc --noEmit -p src/tsconfig.json",
+    "lint:forge": "forge lint",
+    "vendor-engine": "rm -rf src/vendor/engine && mkdir -p src/vendor && cp -R ../engine/src src/vendor/engine && sed -i.bak \"s#'../../engine/src/index'#'./vendor/engine/index'#\" src/engine.ts && rm -f src/engine.ts.bak"
+  },
+  "dependencies": {
+    "@forge/api": "^8.4.0",
+    "@forge/events": "^3.0.10",
+    "@forge/kvs": "^1.0.0",
+    "@forge/resolver": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

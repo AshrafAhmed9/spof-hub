@@ -1,0 +1,235 @@
+# Forge manifest. The app id is written by `forge register`.
+modules:
+  jira:globalPage:
+    - key: spof-hub-jira
+      title: Knowledge risk
+      resource: hub
+      resolver:
+        function: hub-resolver
+  confluence:globalPage:
+    - key: spof-hub-confluence
+      title: Knowledge risk
+      route: knowledge-risk
+      resource: hub
+      resolver:
+        function: hub-resolver
+  jira:issuePanel:
+    - key: spof-issue-panel
+      title: Who knows this
+      resource: hub
+      resolver:
+        function: hub-resolver
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+
+  rovo:agent:
+    - key: handover-guide
+      name: Handover Guide
+      description: Finds work that only one person really knows and helps plan who
+        should take it over. Read only.
+      conversationStarters:
+        - Where do we depend on one person?
+        - What breaks if Dana is out for two weeks?
+        - Who should take over ABC-123?
+        - Write a handover brief for Dana
+      prompt: |
+        You are Handover Guide. You help a team see where knowledge sits with one person, and who could take it over.
+        You only read. You never reassign or change anything. Changes are made by a person in the Handover hub.
+
+        Use your actions, never guess:
+        - "where do we depend on one person" or "single points": call find-single-points.
+        - "what breaks if X is out": call at-risk-for-person with the person and, if given, the dates.
+        - "who should take over ABC-12": call suggest-successor with the key.
+        - "handover brief for X": call handover-brief.
+
+        Always say why. Each result carries a "why" list built from real activity (who assigned, commented, authored or
+        owns the item, and how recent). Quote it. Do not add reasons of your own. Name people and item keys exactly as the
+        action returns them.
+
+        If an action returns notes, or "complete": false, say the answer may be incomplete and repeat the note. An empty
+        list is not proof that nothing is at risk when a note says a source failed or the index is empty.
+        If an action returns an error or no candidate, say so plainly. Never invent a person, an item or a reason.
+
+        State your limits when they matter. Knowledge is estimated from recent Jira and Confluence activity, with older
+        activity counting less. It does not see chats, calls or code review outside Atlassian, and it cannot tell whether
+        someone is actually available. A suggestion is a starting point for a manager to confirm.
+      actions:
+        - find-single-points
+        - at-risk-for-person
+        - suggest-successor
+        - handover-brief
+
+  rovo:mcp:
+    - key: handover-mcp
+      name: Handover Knowledge Risk
+      tools:
+        - find-single-points
+        - at-risk-for-person
+        - suggest-successor
+        - handover-brief
+
+  # Rovo actions: GET only. Agents run from automation rules skip write verbs, and these read data.
+  action:
+    - key: find-single-points
+      name: Find single points of failure
+      function: find-single-points-fn
+      actionVerb: GET
+      description: Lists work items and pages where one person has done most of the recent work. Use for where do we depend on one person. Optionally narrow to an area.
+      inputs:
+        area:
+          title: Area
+          type: string
+          required: false
+          description: Component, project or space name, or part of it. Leave empty for
+            everything.
+        limit:
+          title: Limit
+          type: number
+          required: false
+          description: How many items to return, up to 30. Default 12.
+    - key: at-risk-for-person
+      name: Work at risk if a person is away
+      function: at-risk-for-person-fn
+      actionVerb: GET
+      description: |
+        Lists open work that would be exposed if a named person were away, ranked by risk, with the reasons and a
+        suggested successor for each. Use for "what breaks if Dana is out".
+      inputs:
+        person:
+          title: Person
+          type: string
+          required: true
+          description: The person's name as shown in Jira.
+        from:
+          title: Away from
+          type: string
+          required: false
+          description: First day away, as YYYY-MM-DD. Default today.
+        to:
+          title: Away until
+          type: string
+          required: false
+          description: Last day away, as YYYY-MM-DD. Default 14 days after the start.
+    - key: suggest-successor
+      name: Suggest a successor for an item
+      function: suggest-successor-fn
+      actionVerb: GET
+      description: |
+        Suggests up to three people to take over one Jira work item, with the evidence for each. Use for "who should take
+        over ABC-123".
+      inputs:
+        itemKey:
+          title: Work item key
+          type: string
+          required: true
+          description: The Jira work item key, for example ABC-123.
+        excludePerson:
+          title: Exclude person
+          type: string
+          required: false
+          description: A person who must not be suggested, usually the one who is leaving.
+    - key: handover-brief
+      name: Handover brief
+      function: handover-brief-fn
+      actionVerb: GET
+      description: |
+        Returns the handover plan for a person grouped by area, with reasons and suggested successors, so a brief can be
+        written. Read only. Use for "write a handover brief for Dana".
+      inputs:
+        person:
+          title: Person
+          type: string
+          required: true
+          description: The person who is leaving or away.
+        from:
+          title: Away from
+          type: string
+          required: false
+          description: First day away, as YYYY-MM-DD. Default today.
+        to:
+          title: Away until
+          type: string
+          required: false
+          description: Last day away, as YYYY-MM-DD. Default 14 days after the start.
+
+  # Scans run as chunked async events; progress is kept in app storage.
+  consumer:
+    - key: scan-jobs-consumer
+      queue: scan-jobs
+      resolver:
+        function: scan-consumer-fn
+        method: scan
+
+  # Product events keep the index fresh. They run as the app.
+  trigger:
+    - key: index-on-jira-event
+      function: on-product-event-fn
+      events:
+        - avi:jira:commented:issue
+        - avi:jira:assigned:issue
+        - avi:jira:updated:issue
+    - key: index-on-confluence-event
+      function: on-product-event-fn
+      events:
+        - avi:confluence:updated:page
+
+  # Reports stored account ids to Atlassian and erases closed accounts (Forge user privacy guide).
+  scheduledTrigger:
+    - key: privacy-sweep-trigger
+      function: privacy-sweep-fn
+      interval: week
+
+  function:
+    - key: hub-resolver
+      handler: index.hubResolver
+    - key: scan-consumer-fn
+      handler: index.scanConsumer
+    - key: on-product-event-fn
+      handler: index.onProductEvent
+    - key: find-single-points-fn
+      handler: index.findSinglePointsAction
+    - key: at-risk-for-person-fn
+      handler: index.atRiskForPersonAction
+    - key: suggest-successor-fn
+      handler: index.suggestSuccessorAction
+    - key: handover-brief-fn
+      handler: index.handoverBriefAction
+    - key: privacy-sweep-fn
+      handler: index.privacySweep
+      timeoutSeconds: 300
+
+resources:
+  # Custom UI build output (Vite, relative base).
+  - key: hub
+    path: static/hub/build
+
+permissions:
+  scopes:
+    # Jira REST
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    # Confluence REST (v2 endpoints use the granular scopes; UNVERIFIED which of these the v2 calls need)
+    - read:confluence-content.all
+    - read:confluence-content.summary
+    - read:page:confluence
+    - read:space:confluence
+    # Teamwork Graph: one scope per object type the curated queries touch (names verified on
+    # developer.atlassian.com/platform/teamwork-graph/scopes, page dated 2026-09-15)
+    - read:graph:issue:jira
+    - read:graph:issue-status:jira
+    - read:graph:user:atlassian
+    - read:graph:team:atlassian
+    - read:graph:page:confluence
+    - read:graph:goal:atlassian
+    - read:graph:project:atlassian
+    - read:graph:pull-request:external
+    # App storage (KVS): index, plans, audit log
+    - storage:app
+    # Personal data reporting API (account ids held in storage)
+    - report:personal-data
+  # No external egress: no `external:` block, no fetch to other hosts.
+
+app:
+  runtime:
+    name: nodejs22.x
+  id: ari:cloud:ecosystem::app/a6be9e62-41f5-4a0e-812f-610aaa84027b

@@ -1,0 +1,198 @@
+// Shared logic behind resolvers and Rovo actions.
+import { route } from './api';
+import { applyPlan, undoPlan, type ApplyDeps } from './apply';
+import { assembleGraph, filterVisible, pruneGraph } from './adapters';
+import { computeCoverage, currentAssignee } from './analysis';
+import { buildHandoverPlan, isBot, type Graph, type HandoverPlan, type Person } from './engine';
+import { indexKeys, type ScanDeps } from './scan';
+import { loadSample, type SampleOrg } from './sample';
+import { TwgClient } from './twgClient';
+import { liftOf, mergeTwg } from './twgIndex';
+import type { IndexedItem } from './types';
+import type { CoverageResponse, TeamworkGraphLift, Mode, PlanRequest, PlanResponse, RescanResult, SetupCheck, SetupStatus } from '../shared/contract';
+
+export interface Deps extends ScanDeps {
+  twg?: () => TwgClient;
+  /** Account of the person using the page. Teamwork Graph rows are shown only to the person whose read produced them (PRs, goals). */
+  viewerId?: string;
+  /** Site id, needed to build page ARIs for Teamwork Graph. */
+  cloudId?: string;
+  sample?: () => SampleOrg;
+}
+
+/** Open items per person divided by this gives Person.load (capped at 1). A guess, not measured. */
+export const LOAD_CAPACITY = 10;
+
+export interface LoadedGraph {
+  graph: Graph;
+  now: number;
+  partial: boolean;
+  notes: string[];
+  mode: Mode;
+  /** Present when Teamwork Graph records exist for this site. */
+  lift?: TeamworkGraphLift;
+}
+
+export function modeOf(payload: any): Mode {
+  return payload?.mode === 'sample' ? 'sample' : 'live';
+}
+
+export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
+  if (mode === 'sample') {
+    const s = (deps.sample ?? (() => loadSample(deps.now())))();
+    return { graph: s.graph, now: s.asOf, partial: false, notes: [], mode };
+  }
+  const notes: string[] = [];
+  const recs = await deps.store.list<IndexedItem>('item:');
+  const people = (await deps.store.list<Person>('person:')).map((p) => p.value);
+  if (recs.length === 0) {
+    return { graph: { people: [], items: [], edges: [] }, now: deps.now(), partial: true, notes: ['The index is empty. Run a scan first; an empty result here is not evidence that nothing is at risk.'], mode };
+  }
+  const restRecs = recs.map((r) => r.value);
+  const twg = await mergeTwg(deps, restRecs);
+  // Only Jira keys and pages can be permission-checked with REST; PRs and goals are gated by viewer in mergeTwg.
+  const vis = await filterVisible(deps.api, [...restRecs.map((r) => r.item.id), ...twg.needsCheck], deps.retry);
+  notes.push(...vis.notes);
+  const hidden = recs.length - restRecs.filter((r) => vis.visible.has(r.item.id)).length;
+  if (hidden > 0 && vis.notes.length === 0) notes.push(`${hidden} indexed items are hidden from you by permissions and are not counted.`);
+  if (twg.withheld > 0) notes.push(`${twg.withheld} Teamwork Graph records belong to another person's view and are left out.`);
+  const guarded = new Set(twg.items.filter((r) => r.item.kind === 'pr' || r.item.kind === 'goal').map((r) => r.item.id));
+  const keep = (id: string) => vis.visible.has(id) || guarded.has(id);
+  const known = new Set(people.map((p) => p.id));
+  const allPeople = [...people, ...twg.people.filter((p) => !known.has(p.id))];
+  const base = assembleGraph([...restRecs, ...twg.items], allPeople);
+  let graph = pruneGraph({ ...base, edges: [...base.edges, ...twg.edges] }, keep);
+  // Load = open assigned items / capacity.
+  const open = new Map<string, number>();
+  for (const it of graph.items) {
+    if (!it.open || it.kind !== 'workItem') continue;
+    const a = currentAssignee(graph, it.id);
+    if (a) open.set(a, (open.get(a) ?? 0) + 1);
+  }
+  graph = { ...graph, people: graph.people.map((p) => ({ ...p, load: Math.min(1, (open.get(p.id) ?? 0) / LOAD_CAPACITY) })) };
+  const lift = twg.hasRecords ? liftOf(twg, new Set(graph.items.map((i) => i.id))) : undefined;
+  return { graph, now: deps.now(), partial: notes.length > 0, notes, mode, ...(lift ? { lift } : {}) };
+}
+
+export async function coverage(deps: Deps, mode: Mode): Promise<CoverageResponse> {
+  const g = await loadGraph(deps, mode);
+  return { mode, generatedAt: g.now, partial: g.partial, notes: g.notes, ...computeCoverage(g.graph, g.now), ...(g.lift ? { teamworkGraph: g.lift } : {}) };
+}
+
+export function findPerson(g: Graph, text: string): { person?: Person; error?: string } {
+  const t = text.trim().toLowerCase();
+  const humans = g.people.filter((p) => !p.isBot && !isBot(p.name));
+  const exact = humans.find((p) => p.id === text || p.name.toLowerCase() === t);
+  if (exact) return { person: exact };
+  const m = humans.filter((p) => p.name.toLowerCase().includes(t));
+  if (m.length === 1) return { person: m[0]! };
+  if (m.length === 0) return { error: `No person matching "${text}" in the scanned data.` };
+  return { error: `"${text}" matches ${m.length} people: ${m.slice(0, 6).map((p) => p.name).join(', ')}. Ask which one.` };
+}
+
+/** Adds the leaver's team (and teammates') from Teamwork Graph so the successor ranking can prefer same-team people. */
+async function enrichTeams(deps: Deps, g: Graph, leaverId: string, notes: string[]): Promise<Graph> {
+  if (!deps.twg) return g;
+  const twg = deps.twg();
+  const teams = await twg.atlassianUserInTeams(leaverId);
+  notes.push(...teams.notes);
+  const team = teams.rows[0];
+  if (!team) {
+    if (teams.ok && teams.empty) notes.push('Teamwork Graph returned no team for this person (no team, or scope/permission missing); team preference was not applied.');
+    return g;
+  }
+  const members = await twg.atlassianTeamMembers(team.id);
+  notes.push(...members.notes);
+  const ids = new Set(members.rows.map((m) => m.accountId));
+  return { ...g, people: g.people.map((p) => (p.id === leaverId || ids.has(p.id) ? { ...p, team: team.name } : p)) };
+}
+
+export async function buildPlanFor(deps: Deps, mode: Mode, req: PlanRequest, opts: { persist?: boolean } = {}): Promise<PlanResponse> {
+  const loaded = await loadGraph(deps, mode);
+  const notes = [...loaded.notes];
+  if (!loaded.graph.people.some((p) => p.id === req.leaverId)) notes.push(`Person ${req.leaverId} has no activity in the scanned data.`);
+  const g = mode === 'live' ? await enrichTeams(deps, loaded.graph, req.leaverId, notes) : loaded.graph;
+  const plan = buildHandoverPlan(g, req);
+  if (mode === 'live' && opts.persist !== false) await deps.store.set(`plan:${plan.planKey}`, plan);
+  return { plan, mode, partial: notes.length > 0, notes };
+}
+
+export async function rescan(deps: Deps, mode: Mode, planKey: string): Promise<RescanResult> {
+  if (mode === 'sample') {
+    return { planKey, remainingAtRisk: 0, before: 0 };
+  }
+  const plan = await deps.store.get<HandoverPlan>(`plan:${planKey}`);
+  if (!plan) throw new Error(`Plan ${planKey} was not found. Build the plan again.`);
+  const entries = plan.groups.flatMap((g) => g.entries);
+  const keys = entries.filter((e) => e.kind === 'workItem').map((e) => e.itemId);
+  const re = await indexKeys(deps, keys);
+  const failedIds = new Set(re.failed.map((f) => f.id));
+  // Recompute from fresh data. The leaver's history does not change, so "still at risk" means the work
+  // is still on the leaver (or nobody), or the handover was never applied.
+  const fresh = await buildPlanFor(deps, 'live', { leaverId: plan.leaverId, from: plan.from, to: plan.to }, { persist: false });
+  let remaining = 0;
+  for (const e of fresh.plan.groups.flatMap((g) => g.entries)) {
+    const op = await deps.store.get<{ status: string }>(`op:${e.operationKey}`);
+    const rec = await deps.store.get<IndexedItem>(`item:${e.itemId}`);
+    const assignee = rec?.meta.assigneeId ?? null;
+    const resolved = op?.status === 'done' && assignee !== null && assignee !== plan.leaverId && !failedIds.has(e.itemId);
+    if (!resolved) remaining++;
+  }
+  return { planKey, remainingAtRisk: remaining, before: plan.totals.items };
+}
+
+export const apply = (deps: ApplyDeps, planKey: string, keys: string[]) => applyPlan(deps, planKey, keys);
+export const undo = (deps: ApplyDeps, planKey: string) => undoPlan(deps, planKey);
+
+export async function setupStatus(deps: Deps, mode: Mode): Promise<SetupStatus> {
+  const checks: SetupCheck[] = [];
+  if (mode === 'sample') {
+    let detail = 'Sample data loaded. Nothing is read from or written to your site.';
+    let ok = true;
+    try {
+      (deps.sample ?? (() => loadSample(deps.now())))();
+    } catch (e) {
+      ok = false;
+      detail = (e as Error).message;
+    }
+    return {
+      mode,
+      checks: (['teamwork-graph', 'rovo', 'mcp', 'jira-scopes', 'confluence-scopes', 'index'] as const).map((id) => ({ id, ok, detail: id === 'index' ? detail : 'Not used in sample mode.' })),
+    };
+  }
+  // Teamwork Graph
+  if (deps.twg) {
+    const r = await deps.twg().echo();
+    checks.push({ id: 'teamwork-graph', ok: r.ok, detail: r.ok ? 'Teamwork Graph answered. Scopes are checked per query; a missing scope shows up as empty team data, not as an error.' : `Teamwork Graph call failed: ${r.error}. Check the app has the read:graph scopes granted by an org admin and that Teamwork Graph is available on this site.` });
+  }
+  // Rovo / MCP cannot be probed from app code.
+  checks.push({ id: 'rovo', ok: false, status: 'unknown', detail: 'Not checked automatically: the agent and actions are declared in the manifest. Confirm Rovo is enabled on this site in Rovo Studio.' });
+  checks.push({ id: 'mcp', ok: false, status: 'unknown', detail: 'Not checked automatically: an admin must turn the MCP tools on under Connected apps before outside clients can use them.' });
+  // Jira
+  try {
+    const u = deps.api.asUser();
+    const res = await u.requestJira(route`/rest/api/3/mypermissions?permissions=ASSIGN_ISSUES,ADD_COMMENTS,MANAGE_WATCHERS`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const perms = (await res.json()).permissions ?? {};
+    const missing = ['ASSIGN_ISSUES', 'ADD_COMMENTS', 'MANAGE_WATCHERS'].filter((p) => !perms[p]?.havePermission);
+    checks.push({ id: 'jira-scopes', ok: missing.length === 0, detail: missing.length ? `You lack ${missing.join(', ')} in Jira, so Apply will fail for some items. Reading works.` : 'Jira read and write checks passed for you.' });
+  } catch (e) {
+    checks.push({ id: 'jira-scopes', ok: false, detail: `Could not call Jira as you (${(e as Error).message}). Re-install the app and accept the Jira scopes.` });
+  }
+  try {
+    const res = await deps.api.asUser().requestConfluence(route`/wiki/api/v2/pages?limit=1`, { headers: { Accept: 'application/json' } });
+    checks.push({ id: 'confluence-scopes', ok: res.ok, detail: res.ok ? 'Confluence read works.' : `Confluence returned HTTP ${res.status}. Page ownership will be missing until the Confluence scopes are accepted.` });
+  } catch (e) {
+    checks.push({ id: 'confluence-scopes', ok: false, detail: `Could not call Confluence (${(e as Error).message}).` });
+  }
+  const n = (await deps.store.list('item:')).length;
+  checks.push({ id: 'index', ok: n > 0, detail: n > 0 ? `${n} items indexed.` : 'No data indexed yet. Run a scan.' });
+  return { mode, checks };
+}
+
+export function listPeople(g: Graph): Array<{ id: string; name: string; team?: string }> {
+  return g.people
+    .filter((p) => p.active !== false && !p.isBot && !isBot(p.name))
+    .map((p) => ({ id: p.id, name: p.name, ...(p.team ? { team: p.team } : {}) }))
+    .sort((a, b) => (a.name < b.name ? -1 : 1));
+}

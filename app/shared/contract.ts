@@ -1,0 +1,72 @@
+// Shared contract between the Forge backend (app/src) and the Custom UI (app/static/hub).
+// Engine types are imported by path; the UI must only use the JSON-serializable shapes below.
+import type { HandoverPlan } from '../../engine/src/plan';
+
+export type Mode = 'live' | 'sample';
+
+export interface SetupCheck {
+  id: 'teamwork-graph' | 'rovo' | 'mcp' | 'jira-scopes' | 'confluence-scopes' | 'index';
+  ok: boolean;
+  /** 'unknown' = the app cannot probe this from code. It is neither passing nor failing; ok is false. */
+  status?: 'unknown';
+  detail: string;      // plain language, includes how to fix when !ok
+}
+export interface SetupStatus { mode: Mode; checks: SetupCheck[] }
+
+export interface AreaCoverage {
+  area: string;                 // component / epic / space
+  items: number;
+  truckFactor: number;          // 1 = a single person holds it
+  topPerson: { id: string; name: string; share: number };
+  unassignedToTop: number;      // items mostly handled by topPerson but not assigned to them
+}
+export interface CoverageResponse {
+  mode: Mode;
+  generatedAt: number;
+  partial: boolean;             // true when some sources failed; UI must show a notice
+  notes: string[];
+  areas: AreaCoverage[];
+  totals: { itemsScanned: number; singlePointItems: number; invisibleToAssignee: number };
+  /**
+   * Ablation: what exists in the index only because of Teamwork Graph (not found through Jira or
+   * Confluence REST). Absent in sample mode. Zero is a valid, honest answer.
+   */
+  teamworkGraph?: TeamworkGraphLift;
+}
+export interface TeamworkGraphLift {
+  /** Items (PRs, goals, projects, or work items/pages REST did not index) that only Teamwork Graph supplied. */
+  itemsOnlyFromGraph: number;
+  /** Person-to-item links that only Teamwork Graph supplied. */
+  edgesOnlyFromGraph: number;
+  byKind: { items: Record<string, number>; edges: Record<string, number> };
+  /** Teamwork Graph records that exist but belong to another viewer and were left out for privacy. */
+  withheldRecords: number;
+}
+
+export interface PlanRequest { leaverId: string; from: number; to: number }
+export type PlanResponse = { plan: HandoverPlan; mode: Mode; partial: boolean; notes: string[] };
+
+export interface ApplyRequest { planKey: string; approvedOperationKeys: string[] }
+export interface ApplyResult {
+  planKey: string;
+  done: { operationKey: string; itemId: string }[];
+  failed: { operationKey: string; itemId: string; reason: string }[];   // never swallowed
+  skippedSample: boolean;       // sample mode previews only; no writes
+}
+export interface RescanResult { planKey: string; remainingAtRisk: number; before: number }
+export interface UndoResult { planKey: string; reverted: number; failed: { itemId: string; reason: string }[] }
+
+export interface ScanProgress { state: 'idle' | 'running' | 'done' | 'error'; done: number; total: number; message?: string; /** Teamwork Graph read progress, when that step ran. */ twg?: { done: number; total: number; failed: number }; /** True when the scan only advances while this page is open. */ needsPage?: boolean }
+
+// Resolver names (invoke from UI via @forge/bridge):
+export const RESOLVERS = {
+  getSetupStatus: 'getSetupStatus',     // () => SetupStatus
+  getCoverage: 'getCoverage',           // () => CoverageResponse
+  startScan: 'startScan',               // ({projectKeys?: string[]}) => ScanProgress
+  getScanProgress: 'getScanProgress',   // () => ScanProgress
+  buildPlan: 'buildPlan',               // (PlanRequest) => PlanResponse
+  applyPlan: 'applyPlan',               // (ApplyRequest) => ApplyResult
+  rescan: 'rescan',                     // ({planKey}) => RescanResult
+  undoPlan: 'undoPlan',                 // ({planKey}) => UndoResult
+  listPeople: 'listPeople',             // () => {id,name,team?}[]
+} as const;
