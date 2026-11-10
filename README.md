@@ -25,10 +25,22 @@ Most handover tools move assignees after someone has already left. This one star
 
 On five Apache projects that weren't used to design the method, items held mostly by someone who later left stayed unanswered for 30 days more often than other items. The direction held in four of five projects. A plain comment-count share did slightly better than the decayed score, and an assignee-only rule missed most of what was concentrated. The result supports the coverage claim (items that assignee-based tools can't see) and doesn't support a claim to predict problems. Details, caveats and the protocol are in `backtest/RESULTS.md` and `backtest/DEFINITIONS.md`.
 
+## Installing on Jira and Confluence
+
+The app has a page in both products. Forge keeps a separate store for each product's installation, so each one has its own scan. Run a scan in the product where you want to use it. The Rovo agent and the MCP tools read the index of the product they are called from, so a site with both installed shows two Depth Chart agents.
+
+On a large site, the scan box accepts project keys (for example `MOB, CX`) so you can start with a few projects.
+
+## Using the MCP tools
+
+An admin turns on "Expose tools to MCP-compatible apps" for the app under Site settings, Connected apps. A client then connects to `https://mcp.atlassian.com/forge/<app id>` and signs in. It gets four read-only tools: `find-single-points`, `at-risk-for-person`, `suggest-successor` and `handover-brief`.
+
 ## Known limits
 
 - Teamwork Graph is in preview and its reads run as the viewing user, so they only advance while the page is open.
-- Scans are slow on large sites (about 130 items a minute on the test site) and need the page open.
+- Scans are slow on large sites (about 130 items a minute on the test site) and need the page open. Each page load reads the whole index from Forge storage, which counts against the free monthly allowance; a 5,000-item index used about half of it during testing.
+- An item counts as depending on one person only when it has at least three recorded contributions and one person holds 80% or more of them.
+- Some issue types cannot be assigned (Jira Product Discovery ideas). Those changes are refused by Jira and reported as not applied.
 - The queue that would run scans in the background returned errors on the test site, so scans use a stored work list instead.
 - The Apache data is open-source projects and current assignee only. It isn't a company.
 
