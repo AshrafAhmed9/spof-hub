@@ -31,6 +31,8 @@ export interface LoadedGraph {
   mode: Mode;
   /** Present when Teamwork Graph records exist for this site. */
   lift?: TeamworkGraphLift;
+  /** The same graph built from Jira and Confluence records alone, for the ablation. Only when Teamwork Graph records exist. */
+  restOnly?: Graph;
 }
 
 export function modeOf(payload: any): Mode {
@@ -82,7 +84,8 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   }
   graph = { ...graph, people: graph.people.map((p) => ({ ...p, load: Math.min(1, (open.get(p.id) ?? 0) / LOAD_CAPACITY) })) };
   const lift = twg.hasRecords ? liftOf(twg, new Set(graph.items.map((i) => i.id))) : undefined;
-  return { graph, now: deps.now(), partial: notes.length > 0, notes, mode, ...(lift ? { lift } : {}) };
+  const restOnly = twg.hasRecords ? pruneGraph(assembleGraph(restRecs, allPeople), keep) : undefined;
+  return { graph, now: deps.now(), partial: notes.length > 0, notes, mode, ...(lift ? { lift } : {}), ...(restOnly ? { restOnly } : {}) };
 }
 
 const COVERAGE_TTL_MS = 5 * 60_000;
@@ -99,10 +102,17 @@ export async function coverage(deps: Deps, mode: Mode, fresh = false): Promise<C
     if (hit && deps.now() - hit.at < COVERAGE_TTL_MS) return hit.value;
   }
   const g = await loadGraph(deps, mode);
-  const value: CoverageResponse = { mode, generatedAt: g.now, partial: g.partial, notes: g.notes, ...computeCoverage(g.graph, g.now), ...(g.lift ? { teamworkGraph: g.lift } : {}) };
+  const full = computeCoverage(g.graph, g.now);
+  const teamworkGraph = g.lift && g.restOnly ? { ...g.lift, ablation: { restOnly: ablationOf(computeCoverage(g.restOnly, g.now)), withGraph: ablationOf(full) } } : g.lift;
+  const value: CoverageResponse = { mode, generatedAt: g.now, partial: g.partial, notes: g.notes, ...full, ...(teamworkGraph ? { teamworkGraph } : {}) };
   // An empty index is a "run a scan" state, not a result worth keeping.
   if (mode === 'live' && value.totals.itemsScanned > 0) await deps.store.set(key, { at: deps.now(), value }).catch(() => undefined);
   return value;
+}
+
+function ablationOf(c: ReturnType<typeof computeCoverage>) {
+  const { itemsScanned, singlePointItems, invisibleToAssignee } = c.totals;
+  return { itemsScanned, singlePointItems, invisibleToAssignee };
 }
 
 export async function clearCoverageCache(deps: Pick<Deps, 'store'>): Promise<void> {

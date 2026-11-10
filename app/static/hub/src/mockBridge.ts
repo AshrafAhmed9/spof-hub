@@ -41,6 +41,7 @@ function coverage(): CoverageResponse {
     notes: partial ? ['Teamwork Graph is not available, so pull request reviews and team data are missing.', 'Confluence space DOCS could not be read.'] : [],
     areas: partial && params.get('empty') ? [] : areas,
     totals: { itemsScanned: 412, singlePointItems: 19, invisibleToAssignee: 5 },
+    ...(params.get('twg') ? { teamworkGraph: { itemsOnlyFromGraph: 23, edgesOnlyFromGraph: 61, byKind: { items: { 'pull request': 17, goal: 6 }, edges: { reviewed: 44, owns: 17 } }, withheldRecords: 0, ablation: { restOnly: { itemsScanned: 412, singlePointItems: 24, invisibleToAssignee: 7 }, withGraph: { itemsScanned: 435, singlePointItems: 19, invisibleToAssignee: 5 } } } } : {}),
   };
 }
 

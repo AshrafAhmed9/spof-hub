@@ -41,7 +41,13 @@ export interface TeamworkGraphLift {
   byKind: { items: Record<string, number>; edges: Record<string, number> };
   /** Teamwork Graph records that exist but belong to another viewer and were left out for privacy. */
   withheldRecords: number;
+  /**
+   * The same coverage numbers computed twice: from Jira and Confluence data alone, and with Teamwork Graph added.
+   * The difference is what Teamwork Graph changes in the answer.
+   */
+  ablation?: { restOnly: AblationTotals; withGraph: AblationTotals };
 }
+export interface AblationTotals { itemsScanned: number; singlePointItems: number; invisibleToAssignee: number }
 
 export interface PlanRequest {
   leaverId: string; from: number; to: number;

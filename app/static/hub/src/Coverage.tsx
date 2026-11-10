@@ -96,6 +96,7 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
         ) : (
           <>
             <Hero c={c} attention={sorted.filter(needs).length} />
+            <GraphNote c={c} />
             <div className="filters">
               <div className="field">
                 <label htmlFor="show">Show</label>
@@ -194,6 +195,36 @@ function Hero({ c, attention }: { c: CoverageResponse; attention: number }) {
         <li><span className="v">{n.toLocaleString()}</span><span className="k">{n === 1 ? 'item' : 'items'} on one person</span></li>
         <li><span className="v">{attention.toLocaleString()}</span><span className="k">{attention === 1 ? 'area needs' : 'areas need'} attention</span></li>
       </ul>
+    </section>
+  );
+}
+
+function GraphNote({ c }: { c: CoverageResponse }) {
+  const t = c.teamworkGraph;
+  if (!t) return null;
+  const kinds = (o: Record<string, number>) => Object.entries(o).filter(([, v]) => v > 0).map(([k, v]) => `${v.toLocaleString()} ${k}${v === 1 ? '' : 's'}`).join(', ');
+  const a = t.ablation;
+  const added = t.itemsOnlyFromGraph + t.edgesOnlyFromGraph;
+  return (
+    <section className="card card-pad stack-sm" aria-label="What Teamwork Graph adds">
+      <p className="eyebrow">What Teamwork Graph adds</p>
+      {added === 0 ? (
+        <p>Teamwork Graph returned nothing beyond what Jira and Confluence already gave, so the numbers above come from them alone.</p>
+      ) : (
+        <>
+          <p>
+            Teamwork Graph supplied {t.itemsOnlyFromGraph > 0 ? <>{kinds(t.byKind.items)} that Jira and Confluence did not give, and </> : null}
+            {t.edgesOnlyFromGraph.toLocaleString()} {t.edgesOnlyFromGraph === 1 ? 'link' : 'links'} between people and work{t.edgesOnlyFromGraph > 0 && Object.keys(t.byKind.edges).length > 0 ? <> ({kinds(t.byKind.edges)})</> : null}.
+          </p>
+          {a && (
+            <p>
+              With it, {plural(a.withGraph.singlePointItems, 'item')} depend{a.withGraph.singlePointItems === 1 ? 's' : ''} on one person. From Jira and Confluence alone the count is {a.restOnly.singlePointItems.toLocaleString()}.
+              {a.withGraph.singlePointItems < a.restOnly.singlePointItems && ' It can go down, because reviews and goal ownership show that some work is shared more widely than comments suggest.'}
+            </p>
+          )}
+        </>
+      )}
+      {t.withheldRecords > 0 && <p className="subtle">{plural(t.withheldRecords, 'record')} belong to another person's view and are left out.</p>}
     </section>
   );
 }
