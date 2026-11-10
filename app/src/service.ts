@@ -173,7 +173,8 @@ export async function buildPlanFor(deps: Deps, mode: Mode, req: PlanRequest, opt
   if (!loaded.graph.people.some((p) => p.id === req.leaverId)) notes.push(`Person ${req.leaverId} has no activity in the scanned data.`);
   const g = mode === 'live' ? await enrichTeams(deps, loaded.graph, req.leaverId, notes) : loaded.graph;
   const eligible = mode === 'live' ? await assignability(deps, g, req.leaverId, notes) : undefined;
-  const plan = buildHandoverPlan(g, req, eligible ? { eligible } : {});
+  const cap = Number.isFinite(req.maxPerPerson) ? Math.min(100, Math.floor(req.maxPerPerson!)) : 0;
+  const plan = buildHandoverPlan(g, req, { ...(eligible ? { eligible } : {}), ...(cap > 0 ? { maxPerPerson: cap } : {}) });
   if (mode === 'live' && opts.persist !== false) await deps.store.set(`plan:${plan.planKey}`, plan);
   return { plan, mode, partial: notes.length > 0, notes };
 }

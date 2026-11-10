@@ -43,7 +43,11 @@ export interface TeamworkGraphLift {
   withheldRecords: number;
 }
 
-export interface PlanRequest { leaverId: string; from: number; to: number }
+export interface PlanRequest {
+  leaverId: string; from: number; to: number;
+  /** Most items one person may receive. Omitted: no limit, work is spread by a load penalty. */
+  maxPerPerson?: number;
+}
 export type PlanResponse = { plan: HandoverPlan; mode: Mode; partial: boolean; notes: string[] };
 
 export interface ApplyRequest { planKey: string; approvedOperationKeys: string[] }

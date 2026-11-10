@@ -30,6 +30,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
   const today = useMemo(() => todayDay(), []);
   const [from, setFrom] = useState(toInputDate(today));
   const [to, setTo] = useState(toInputDate(today + 41 * DAY));
+  const [limit, setLimit] = useState('');
   const [phase, setPhase] = useState<Phase>('form');
   const [building, setBuilding] = useState(false);
   const [planErr, setPlanErr] = useState<unknown>(null);
@@ -57,7 +58,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
 
   const build = () => {
     setBuilding(true); setPlanErr(null);
-    api.buildPlan({ leaverId: leaver, from: fromInputDate(from), to: fromInputDate(to) + DAY - 1 }).then(
+    api.buildPlan({ leaverId: leaver, from: fromInputDate(from), to: fromInputDate(to) + DAY - 1, ...(Number(limit) >= 1 ? { maxPerPerson: Math.floor(Number(limit)) } : {}) }).then(
       (r) => {
         setRes({ plan: r.plan, partial: r.partial, notes: r.notes });
         const c: Record<string, string> = {};
@@ -147,6 +148,11 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
             <div className="field">
               <label htmlFor="to">Back after</label>
               <input id="to" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} aria-invalid={dateBad} aria-describedby={dateBad ? 'date-err' : undefined} />
+            </div>
+            <div className="field">
+              <label htmlFor="limit">Most items per person</label>
+              <input id="limit" type="number" inputMode="numeric" min={1} max={100} placeholder="No limit" value={limit} onChange={(e) => setLimit(e.target.value)} aria-describedby="limit-help" />
+              <span id="limit-help" className="hint">Optional. Spreads the work so nobody gets more than this.</span>
             </div>
           </div>
           {dateBad && <p id="date-err" role="alert" style={{ color: 'var(--ds-text-danger,#ae2e24)' }}>Pick an end date that is on or after the start date.</p>}

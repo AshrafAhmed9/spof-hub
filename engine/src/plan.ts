@@ -1,5 +1,6 @@
 import { DAY_MS, type Graph, type Item } from './model';
 import { explainRisk, type RiskBreakdown } from './explain';
+import { assignWithCapacity } from './assign';
 import { propagateRisk, type RiskOptions } from './propagation';
 import { suggestSuccessors, type Successor, type SuccessorOptions } from './successor';
 
@@ -18,6 +19,12 @@ export interface PlanOptions extends RiskOptions, Omit<SuccessorOptions, 'k' | '
   minRisk?: number;
   /** Alternates per item besides the pick. Default 2. */
   alternates?: number;
+  /**
+   * Most items one person may receive. When set, the whole plan is solved at once (minimum-cost flow)
+   * so nobody exceeds the limit and total fit is the best possible. Unset: items are picked one by one
+   * with a growing load penalty.
+   */
+  maxPerPerson?: number;
   /** Load added to a successor each time they are picked. Default 0.05. */
   loadStep?: number;
   /** People who must not receive work (besides the leaver and inactive people). */
@@ -75,7 +82,9 @@ export function buildHandoverPlan(graph: Graph, req: PlanRequest, opts: PlanOpti
   const minRisk = opts.minRisk ?? 0.15;
   const nAlt = opts.alternates ?? 2;
   const loadStep = opts.loadStep ?? 0.05;
-  const planKey = `plan_${stableKey(`${req.leaverId}|${req.from}|${req.to}`)}`;
+  // A limit changes who gets what, so it is part of the key; plans without one keep their earlier keys.
+  const capKey = opts.maxPerPerson !== undefined && opts.maxPerPerson > 0 ? `|cap${opts.maxPerPerson}` : '';
+  const planKey = `plan_${stableKey(`${req.leaverId}|${req.from}|${req.to}${capKey}`)}`;
 
   const items = new Map(graph.items.map((i) => [i.id, i]));
   const risks = propagateRisk(graph, req.leaverId, req.from, req.from, opts).filter((r) => {
@@ -85,19 +94,42 @@ export function buildHandoverPlan(graph: Graph, req: PlanRequest, opts: PlanOpti
 
   const loads = new Map<string, number>();
   const entries: PlanEntry[] = [];
-  for (const r of risks) {
-    const it = items.get(r.itemId)!;
-    const { eligible, ...succOpts } = opts;
-    const ranked = suggestSuccessors(graph, it.id, req.from, {
+  const { eligible, ...succOpts } = opts;
+  const cap = opts.maxPerPerson;
+  const rank = (itemId: string, k: number, loadOverrides: Map<string, number>) =>
+    suggestSuccessors(graph, itemId, req.from, {
       ...succOpts,
-      // Ask for extra so ineligible people can be dropped without leaving the item empty.
-      k: eligible ? 1 + nAlt + 8 : 1 + nAlt,
+      k,
       exclude: [req.leaverId, ...(opts.exclude ?? [])],
-      loadOverrides: loads,
+      loadOverrides,
       ...(leaver?.team !== undefined ? { team: leaver.team } : {}),
-    }).filter((c) => !eligible || eligible(it.id, c.personId)).slice(0, 1 + nAlt);
-    const successor = ranked[0] ?? null;
-    if (successor) loads.set(successor.personId, Math.min(1, successor.load + loadStep));
+    }).filter((c) => !eligible || eligible(itemId, c.personId));
+
+  // Capped mode: rank everyone first, then choose all successors together.
+  let chosen: Array<string | null> | undefined;
+  let pools: Successor[][] | undefined;
+  if (cap !== undefined && cap > 0) {
+    pools = risks.map((r) => rank(r.itemId, Math.max(12, 1 + nAlt + 8), new Map()));
+    chosen = assignWithCapacity(pools.map((l) => l.map((c) => ({ personId: c.personId, score: c.score }))), () => cap);
+  }
+
+  for (let idx = 0; idx < risks.length; idx++) {
+    const r = risks[idx]!;
+    const it = items.get(r.itemId)!;
+    let successor: Successor | null;
+    let alternates: Successor[];
+    if (pools && chosen) {
+      const pick = chosen[idx];
+      const pool = pools[idx]!;
+      successor = pick ? (pool.find((c) => c.personId === pick) ?? null) : null;
+      alternates = pool.filter((c) => c.personId !== pick).slice(0, nAlt);
+    } else {
+      // Ask for extra so ineligible people can be dropped without leaving the item empty.
+      const ranked = rank(it.id, eligible ? 1 + nAlt + 8 : 1 + nAlt, loads).slice(0, 1 + nAlt);
+      successor = ranked[0] ?? null;
+      alternates = ranked.slice(1);
+      if (successor) loads.set(successor.personId, Math.min(1, successor.load + loadStep));
+    }
 
     const ex = explainRisk(graph, r, req.leaverId, req.from);
     entries.push({
@@ -110,7 +142,7 @@ export function buildHandoverPlan(graph: Graph, req: PlanRequest, opts: PlanOpti
       reasons: ex.reasons,
       breakdown: ex.breakdown,
       successor,
-      alternates: ranked.slice(1),
+      alternates,
       operationKey: `op_${stableKey(`${planKey}|${it.id}|${successor?.personId ?? 'none'}`)}`,
     });
   }

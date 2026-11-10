@@ -24,3 +24,28 @@ describe('single point evidence', () => {
     expect(computeCoverage(s.graph, s.asOf).totals.singlePointItems).toBeGreaterThan(0);
   });
 });
+
+describe('plan limit per person (service level)', () => {
+  it('passes the limit to the planner and no one exceeds it', async () => {
+    const { buildPlanFor } = await import('./service');
+    const { memoryStore } = await import('./kv');
+    const now = Date.UTC(2026, 10, 10);
+    const s = loadSample(now);
+    // Pick the person holding the most single points so the plan has real work in it.
+    const { topPerItem } = await import('./analysis');
+    const tally = new Map<string, number>();
+    for (const t of topPerItem(s.graph, now)) tally.set(t.personId, (tally.get(t.personId) ?? 0) + 1);
+    const leaverId = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    const deps: any = { store: memoryStore(), now: () => now, api: {}, sample: () => s };
+    const req = { leaverId, from: now, to: now + 14 * 86_400_000 };
+    const loose = await buildPlanFor(deps, 'sample', req, { persist: false });
+    const capped = await buildPlanFor(deps, 'sample', { ...req, maxPerPerson: 2 }, { persist: false });
+    const count = (p: typeof loose) => {
+      const m = new Map<string, number>();
+      for (const g of p.plan.groups) for (const e of g.entries) if (e.successor) m.set(e.successor.personId, (m.get(e.successor.personId) ?? 0) + 1);
+      return Math.max(0, ...m.values());
+    };
+    expect(count(capped)).toBeLessThanOrEqual(2);
+    expect(capped.plan.planKey).not.toBe(loose.plan.planKey);
+  });
+});
