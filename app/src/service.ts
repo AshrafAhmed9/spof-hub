@@ -143,9 +143,39 @@ export async function buildPlanFor(deps: Deps, mode: Mode, req: PlanRequest, opt
   const notes = [...loaded.notes];
   if (!loaded.graph.people.some((p) => p.id === req.leaverId)) notes.push(`Person ${req.leaverId} has no activity in the scanned data.`);
   const g = mode === 'live' ? await enrichTeams(deps, loaded.graph, req.leaverId, notes) : loaded.graph;
-  const plan = buildHandoverPlan(g, req);
+  const eligible = mode === 'live' ? await assignability(deps, g, req.leaverId, notes) : undefined;
+  const plan = buildHandoverPlan(g, req, eligible ? { eligible } : {});
   if (mode === 'live' && opts.persist !== false) await deps.store.set(`plan:${plan.planKey}`, plan);
   return { plan, mode, partial: notes.length > 0, notes };
+}
+
+/**
+ * Who can be assigned issues in each project the leaver worked in. A suggestion the site would refuse
+ * (the person lacks the Assignable User permission) is worse than no suggestion. If a project's list
+ * cannot be read, nobody is filtered out there and the note says so.
+ */
+async function assignability(deps: Deps, g: Graph, leaverId: string, notes: string[]): Promise<((itemId: string, personId: string) => boolean) | undefined> {
+  const projects = new Set<string>();
+  const mine = new Set(g.edges.filter((e) => e.person === leaverId).map((e) => e.item));
+  for (const id of mine) if (/^[A-Z][A-Z0-9_]*-\d+$/.test(id)) projects.add(id.slice(0, id.lastIndexOf('-')));
+  const allowed = new Map<string, Set<string>>();
+  const unread: string[] = [];
+  const user = deps.api.asUser();
+  await Promise.all([...projects].map(async (key) => {
+    try {
+      const res = await user.requestJira(route`/rest/api/3/user/assignable/search?project=${key}&maxResults=1000`, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(String(res.status));
+      allowed.set(key, new Set(((await res.json()) as Array<{ accountId?: string }>).map((u) => u.accountId ?? '')));
+    } catch {
+      unread.push(key);
+    }
+  }));
+  if (unread.length) notes.push(`Could not check who can be assigned in ${unread.sort().join(', ')}; suggestions there may not be assignable.`);
+  if (allowed.size === 0) return undefined;
+  return (itemId, personId) => {
+    const set = allowed.get(itemId.slice(0, itemId.lastIndexOf('-')));
+    return !set || set.has(personId);
+  };
 }
 
 export async function rescan(deps: Deps, mode: Mode, planKey: string): Promise<RescanResult> {

@@ -12,6 +12,8 @@ export interface PlanRequest {
 }
 
 export interface PlanOptions extends RiskOptions, Omit<SuccessorOptions, 'k' | 'exclude' | 'loadOverrides' | 'team'> {
+  /** Return false when this person cannot take this item (for example, not assignable in its project). */
+  eligible?: (itemId: string, personId: string) => boolean;
   /** Ignore items below this total risk. Default 0.15. */
   minRisk?: number;
   /** Alternates per item besides the pick. Default 2. */
@@ -85,13 +87,15 @@ export function buildHandoverPlan(graph: Graph, req: PlanRequest, opts: PlanOpti
   const entries: PlanEntry[] = [];
   for (const r of risks) {
     const it = items.get(r.itemId)!;
+    const { eligible, ...succOpts } = opts;
     const ranked = suggestSuccessors(graph, it.id, req.from, {
-      ...opts,
-      k: 1 + nAlt,
+      ...succOpts,
+      // Ask for extra so ineligible people can be dropped without leaving the item empty.
+      k: eligible ? 1 + nAlt + 8 : 1 + nAlt,
       exclude: [req.leaverId, ...(opts.exclude ?? [])],
       loadOverrides: loads,
       ...(leaver?.team !== undefined ? { team: leaver.team } : {}),
-    });
+    }).filter((c) => !eligible || eligible(it.id, c.personId)).slice(0, 1 + nAlt);
     const successor = ranked[0] ?? null;
     if (successor) loads.set(successor.personId, Math.min(1, successor.load + loadStep));
 

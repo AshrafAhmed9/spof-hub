@@ -130,7 +130,7 @@ describe('applyPlan idempotency', () => {
     const r1 = await applyPlan(deps, plan.planKey, [e1.operationKey]);
     expect(r1.done).toEqual([]);
     expect(r1.failed).toHaveLength(1);
-    expect(r1.failed[0]!.reason).toMatch(/commenting failed \(HTTP 403/);
+    expect(r1.failed[0]!.reason).toMatch(/commenting failed\. You do not have permission/);
     expect(jira.state.puts).toBe(1); // assignee step finished
     expect((await store.get<OpRecord>(`op:${e1.operationKey}`))!.status).toBe('failed');
 
@@ -173,6 +173,35 @@ describe('applyPlan idempotency', () => {
     expect(jira.state.watcherPosts).toBe(0);
     await undoPlan(deps, plan.planKey);
     expect(jira.state.watchers['ABC-1']).toEqual([e1.successor!.personId]);
+  });
+});
+
+describe('suggestions the site would refuse', () => {
+  it('skips a candidate who cannot be assigned in the project', () => {
+    const open = buildHandoverPlan(graph, { leaverId: 'dana', from: NOW, to: NOW + 14 * DAY });
+    const pick = open.groups.flatMap((g) => g.entries).find((e) => e.itemId === 'ABC-1')!.successor!.personId;
+    const limited = buildHandoverPlan(graph, { leaverId: 'dana', from: NOW, to: NOW + 14 * DAY }, { eligible: (_item, person) => person !== pick });
+    const next = limited.groups.flatMap((g) => g.entries).find((e) => e.itemId === 'ABC-1')!.successor;
+    expect(next?.personId).not.toBe(pick);
+  });
+
+  it('explains a refused assignee in plain words', async () => {
+    const { deps, plan, jira, e1 } = await setup();
+    const orig = jira.api.asUser;
+    (jira.api as any).asUser = () => ({
+      ...orig(),
+      requestJira: async (r: any, init: any) => {
+        const path = typeof r === 'string' ? r : r.value;
+        if (/assignee/.test(path) && init?.method === 'PUT') {
+          const body = JSON.stringify({ errorMessages: [], errors: { assignee: "User 'abc' cannot be assigned issues." } });
+          return { status: 400, ok: false, json: async () => JSON.parse(body), text: async () => body };
+        }
+        return orig().requestJira(r, init);
+      },
+    });
+    const r = await applyPlan(deps, plan.planKey, [e1.operationKey]);
+    expect(r.failed[0]!.reason).toMatch(/not allowed to take issues/);
+    expect(r.failed[0]!.reason).not.toMatch(/errorMessages/);
   });
 });
 

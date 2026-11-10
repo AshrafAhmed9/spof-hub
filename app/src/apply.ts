@@ -17,9 +17,23 @@ async function expectOk(res: { ok: boolean; status: number; text(): Promise<stri
   if (res.ok) return;
   let body = '';
   try {
-    body = (await res.text()).slice(0, 160);
+    body = (await res.text()).slice(0, 400);
   } catch { /* ignore */ }
-  throw new StepError(`${what} failed (HTTP ${res.status}${body ? `: ${body}` : ''})`);
+  throw new StepError(`${what} failed. ${explain(res.status, body)}`);
+}
+
+/** Turns Jira's error body into a sentence a person can act on, keeping the status for support. */
+function explain(status: number, body: string): string {
+  let msgs: string[] = [];
+  try {
+    const j = JSON.parse(body) as { errorMessages?: string[]; errors?: Record<string, string> };
+    msgs = [...(j.errorMessages ?? []), ...Object.values(j.errors ?? {})].filter(Boolean);
+  } catch { /* not JSON */ }
+  const text = msgs.join(' ');
+  if (/cannot be assigned/i.test(text)) return 'That person is not allowed to take issues in this project. Choose someone else, or ask a Jira admin to give them the Assignable User permission.';
+  if (status === 403 || /permission/i.test(text)) return 'You do not have permission to change this issue.';
+  if (status === 404) return 'The issue could not be found. It may have been moved or deleted.';
+  return `${text || body.slice(0, 120) || 'No details were returned.'} (HTTP ${status})`;
 }
 
 async function currentAssignee(c: Client, key: string, retry?: Retry): Promise<string | null> {
