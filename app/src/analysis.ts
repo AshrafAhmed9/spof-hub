@@ -43,6 +43,7 @@ export function computeCoverage(g: Graph, now: number): Omit<CoverageResponse, '
   const names = new Map(g.people.filter((p) => p.name && p.name !== p.id).map((p) => [p.id, p.name]));
   const tops = topPerItem(g, now);
   const topById = new Map(tops.map((t) => [t.itemId, t]));
+  const kindOf = new Map(g.items.map((i) => [i.id, i.kind]));
   const byArea = new Map<string, Item[]>();
   for (const it of g.items) if (it.kind !== 'goal' && it.open) (byArea.get(it.area ?? 'No area') ?? byArea.set(it.area ?? 'No area', []).get(it.area ?? 'No area')!).push(it);
 
@@ -77,9 +78,12 @@ export function computeCoverage(g: Graph, now: number): Omit<CoverageResponse, '
   return {
     areas,
     totals: {
-      itemsScanned: g.items.filter((i) => i.kind !== 'goal').length,
-      singlePointItems: tops.filter((t) => t.share >= SINGLE_POINT).length,
+      // The headline counts work (issues, PRs). A page with one author is normal, so pages are reported on their own.
+      itemsScanned: g.items.filter((i) => i.kind !== 'goal' && i.kind !== 'page').length,
+      singlePointItems: tops.filter((t) => t.share >= SINGLE_POINT && kindOf.get(t.itemId) !== 'page').length,
       invisibleToAssignee: tops.filter((t) => t.share >= OWNER_MIN && t.assignee !== null && t.assignee !== t.personId).length,
+      pagesScanned: g.items.filter((i) => i.kind === 'page').length,
+      singleAuthorPages: tops.filter((t) => t.share >= SINGLE_POINT && kindOf.get(t.itemId) === 'page').length,
     },
   };
 }

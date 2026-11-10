@@ -26,7 +26,7 @@ export interface CoverageResponse {
   partial: boolean;             // true when some sources failed; UI must show a notice
   notes: string[];
   areas: AreaCoverage[];
-  totals: { itemsScanned: number; singlePointItems: number; invisibleToAssignee: number };
+  totals: { itemsScanned: number; singlePointItems: number; invisibleToAssignee: number; pagesScanned?: number; singleAuthorPages?: number };
   /**
    * Ablation: what exists in the index only because of Teamwork Graph (not found through Jira or
    * Confluence REST). Absent in sample mode. Zero is a valid, honest answer.

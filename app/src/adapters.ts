@@ -227,30 +227,28 @@ export async function filterVisible(api: ApiLike, itemIds: string[], retry?: Ret
   const user = api.asUser();
   const issues = itemIds.filter((i) => !i.startsWith('page:'));
   const pages = itemIds.filter((i) => i.startsWith('page:')).map((i) => i.slice(5));
-  let issueFailed = 0;
-  for (let i = 0; i < issues.length; i += 100) {
-    const batch = issues.slice(i, i + 100);
-    try {
-      const keys = batch.map((k) => `"${k.replace(/"/g, '')}"`).join(',');
-      const r = await searchIssues(user, `key in (${keys})`, ['summary'], undefined, 100, retry);
-      for (const x of r.issues) visible.add(x.key);
-    } catch {
-      issueFailed += batch.length;
+  // Batches run a few at a time; one after another took ~25 s on a 4,600-item index.
+  const inBatches = async (ids: string[], run: (batch: string[]) => Promise<void>): Promise<number> => {
+    const batches: string[][] = [];
+    for (let i = 0; i < ids.length; i += 100) batches.push(ids.slice(i, i + 100));
+    let failed = 0;
+    for (let i = 0; i < batches.length; i += 6) {
+      await Promise.all(batches.slice(i, i + 6).map((b) => run(b).catch(() => { failed += b.length; })));
     }
-  }
+    return failed;
+  };
+  const issueFailed = await inBatches(issues, async (batch) => {
+    const keys = batch.map((k) => `"${k.replace(/"/g, '')}"`).join(',');
+    const r = await searchIssues(user, `key in (${keys})`, ['summary'], undefined, 100, retry);
+    for (const x of r.issues) visible.add(x.key);
+  });
   if (issueFailed) notes.push(`Could not check Jira permissions for ${issueFailed} items; they were left out.`);
-  let pageFailed = 0;
-  for (let i = 0; i < pages.length; i += 100) {
-    const batch = pages.slice(i, i + 100);
-    try {
-      const q = new URLSearchParams({ id: batch.join(','), limit: '100' });
-      const res = await withRetry(() => user.requestConfluence(route`/wiki/api/v2/pages?${q}`, { headers: { Accept: 'application/json' } }), retry);
-      if (!res.ok) throw new Error(String(res.status));
-      for (const p of (await res.json()).results ?? []) visible.add(`page:${p.id}`);
-    } catch {
-      pageFailed += batch.length;
-    }
-  }
+  const pageFailed = await inBatches(pages, async (batch) => {
+    const q = new URLSearchParams({ id: batch.join(','), limit: '100' });
+    const res = await withRetry(() => user.requestConfluence(route`/wiki/api/v2/pages?${q}`, { headers: { Accept: 'application/json' } }), retry);
+    if (!res.ok) throw new Error(String(res.status));
+    for (const p of (await res.json()).results ?? []) visible.add(`page:${p.id}`);
+  });
   if (pageFailed) notes.push(`Could not check Confluence permissions for ${pageFailed} pages; they were left out.`);
   return { visible, notes };
 }

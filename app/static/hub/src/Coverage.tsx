@@ -174,12 +174,13 @@ function Hero({ c, attention }: { c: CoverageResponse; attention: number }) {
       </p>
       {!calm && (
         <p className="lede">
-          That is {share}% of the {plural(c.totals.itemsScanned, 'item')} scanned.
+          That is {share}% of the {plural(c.totals.itemsScanned, 'work item')} scanned.
           {c.totals.invisibleToAssignee > 0 && <> {plural(c.totals.invisibleToAssignee, 'item')} {c.totals.invisibleToAssignee === 1 ? 'is' : 'are'} not assigned to the person who knows it best, so {c.totals.invisibleToAssignee === 1 ? 'it' : 'they'} won't show up on their list.</>}
+          {(c.totals.singleAuthorPages ?? 0) > 0 && <> Separately, {plural(c.totals.singleAuthorPages!, 'page')} of {(c.totals.pagesScanned ?? 0).toLocaleString()} {c.totals.singleAuthorPages === 1 ? 'has' : 'have'} a single author.</>}
         </p>
       )}
       <ul className="stats" aria-label="Totals">
-        <li><span className="v">{c.totals.itemsScanned.toLocaleString()}</span><span className="k">items scanned</span></li>
+        <li><span className="v">{c.totals.itemsScanned.toLocaleString()}</span><span className="k">work items scanned</span></li>
         <li><span className="v">{n.toLocaleString()}</span><span className="k">{n === 1 ? 'item' : 'items'} on one person</span></li>
         <li><span className="v">{attention.toLocaleString()}</span><span className="k">{attention === 1 ? 'area needs' : 'areas need'} attention</span></li>
       </ul>
