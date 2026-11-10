@@ -7,7 +7,7 @@ import { api, type PlanEntry } from './api';
 import type { AreaCoverage, CoverageResponse, ScanProgress } from '../../../shared/contract';
 import { EmptyState, ErrorPanel, ExternalLink, Loading, PartialNotice, PrimaryButton, ShareBar, useFocusHeading } from './common';
 import { itemUrl, useHost } from './host';
-import { DAY, fmtDate, fmtDateLong, fmtTime, plural, shareWords } from './util';
+import { DAY, fmtDate, fmtDateLong, fmtTime, plural, shareWords, todayDay } from './util';
 const WhyDrawer = lazy(() => import('./WhyDrawer').then((m) => ({ default: m.WhyDrawer })));
 
 export type Nav =
@@ -213,7 +213,7 @@ function ScanBar({ p }: { p: ScanProgress }) {
 
 /* ---------- area ---------- */
 
-const windowDefault = () => { const from = new Date().setHours(0, 0, 0, 0); return { from, to: from + 41 * DAY }; };
+const windowDefault = () => { const from = todayDay(); return { from, to: from + 41 * DAY }; };
 
 function Area({ area, setNav, onPlan, onSetup }: { area: AreaCoverage; setNav: (n: Nav) => void; onPlan: (id: string) => void; onSetup: () => void }) {
   const win = useMemo(windowDefault, []);

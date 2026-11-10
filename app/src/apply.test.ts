@@ -200,7 +200,7 @@ describe('suggestions the site would refuse', () => {
       },
     });
     const r = await applyPlan(deps, plan.planKey, [e1.operationKey]);
-    expect(r.failed[0]!.reason).toMatch(/not allowed to take issues/);
+    expect(r.failed[0]!.reason).toMatch(/would not assign this issue/);
     expect(r.failed[0]!.reason).not.toMatch(/errorMessages/);
   });
 });

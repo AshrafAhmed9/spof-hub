@@ -1,19 +1,26 @@
 export const DAY = 86_400_000;
 
+// Absence dates are calendar days, not moments. They are stored as midnight UTC so the day a person picked is the day
+// the server, the Jira comment and every viewer see, whatever their time zone.
 export function toInputDate(ms: number): string {
   const d = new Date(ms);
   const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
 }
 export function fromInputDate(s: string): number {
   const [y, m, d] = s.split('-').map(Number);
-  return new Date(y!, (m ?? 1) - 1, d ?? 1).getTime();
+  return Date.UTC(y!, (m ?? 1) - 1, d ?? 1);
+}
+/** Today's calendar date in the viewer's own time zone, as a day value. */
+export function todayDay(): number {
+  const n = new Date();
+  return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
 }
 export function fmtDate(ms: number): string {
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(new Date(ms));
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(ms));
 }
 export function fmtDateLong(ms: number): string {
-  return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(ms));
+  return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(ms));
 }
 export function fmtTime(ms: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(ms));

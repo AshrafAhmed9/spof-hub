@@ -30,7 +30,7 @@ function explain(status: number, body: string): string {
     msgs = [...(j.errorMessages ?? []), ...Object.values(j.errors ?? {})].filter(Boolean);
   } catch { /* not JSON */ }
   const text = msgs.join(' ');
-  if (/cannot be assigned/i.test(text)) return 'That person is not allowed to take issues in this project. Choose someone else, or ask a Jira admin to give them the Assignable User permission.';
+  if (/cannot be assigned/i.test(text)) return 'Jira would not assign this issue to that person. Some issue types, such as Jira Product Discovery ideas, cannot be assigned at all; otherwise the person may lack the Assignable User permission. Choose someone else or change it in Jira.';
   if (status === 403 || /permission/i.test(text)) return 'You do not have permission to change this issue.';
   if (status === 404) return 'The issue could not be found. It may have been moved or deleted.';
   return `${text || body.slice(0, 120) || 'No details were returned.'} (HTTP ${status})`;

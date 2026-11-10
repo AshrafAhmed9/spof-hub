@@ -9,7 +9,7 @@ import { api, type HandoverPlan, type PlanEntry, type Person } from './api';
 import type { ApplyResult, Mode, RescanResult, UndoResult } from '../../../shared/contract';
 import { EmptyState, ErrorPanel, ExternalLink, Loading, PartialNotice, PrimaryButton, useFocusHeading } from './common';
 import { itemUrl, useHost } from './host';
-import { DAY, fmtDate, fmtDateLong, fromInputDate, opKeyFor, plural, toInputDate } from './util';
+import { DAY, fmtDate, fmtDateLong, fromInputDate, opKeyFor, plural, todayDay, toInputDate } from './util';
 const WhyDrawer = lazy(() => import('./WhyDrawer').then((m) => ({ default: m.WhyDrawer })));
 
 export interface Run { planKey: string; leaverName: string; at: number; done: number; failed: number; undone: boolean; sample: boolean }
@@ -27,7 +27,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
   const [people, setPeople] = useState<Person[] | null>(null);
   const [peopleErr, setPeopleErr] = useState<unknown>(null);
   const [leaver, setLeaver] = useState(initialLeaver ?? '');
-  const today = useMemo(() => new Date().setHours(0, 0, 0, 0), []);
+  const today = useMemo(() => todayDay(), []);
   const [from, setFrom] = useState(toInputDate(today));
   const [to, setTo] = useState(toInputDate(today + 41 * DAY));
   const [phase, setPhase] = useState<Phase>('form');
@@ -220,7 +220,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
                                 </div>
                               </td>
                               <td data-label="Why this person">
-                                {cur ? (cur.evidence?.[0] ?? '') : <span className="subtle">No clear fit. Choose someone to approve.</span>}
+                                {cur ? (cur.evidence?.[0] ?? 'No direct history on this work. Suggested from the people around it.') : <span className="subtle">No clear fit. Choose someone to approve.</span>}
                                 {cur && (cur.evidence?.length ?? 0) > 1 && <ul className="evidence">{cur.evidence!.slice(1).map((x, i) => <li key={i}>{x}</li>)}</ul>}
                               </td>
                               <td data-label="Approve">
