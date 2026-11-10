@@ -130,6 +130,20 @@ export async function mockInvoke(name: string, payload?: unknown): Promise<unkno
         ? ({ state: 'done', done: 1200, total: 1200 } satisfies ScanProgress)
         : ({ state: 'running', done: scanTicks * 300, total: 1200, message: 'Scanning PAY' } satisfies ScanProgress);
     }
+    case 'getTimeline': {
+      const abs = ((payload as { absences?: Array<{ personId: string; from: number; to: number }> })?.absences ?? []);
+      const start = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+      return {
+        mode, partial: false, notes: [],
+        steps: Array.from({ length: 8 }, (_, i) => {
+          const a = start + i * 7 * 86_400_000, b = a + 7 * 86_400_000 - 1;
+          const away = abs.filter((x) => x.from <= b && x.to + 86_399_999 >= a).map((x) => ({ id: x.personId, name: people.find((p) => p.id === x.personId)?.name ?? x.personId }));
+          const priya = away.some((p) => p.id === 'u-priya');
+          const areas = priya ? [{ area: 'Payments service', uncovered: 4, items: [{ id: 'PAY-12', title: 'Refund webhook retries' }, { id: 'PAY-31', title: 'Ledger rounding' }, { id: 'PAY-40', title: 'Settlement report' }, { id: 'PAY-44', title: 'Chargeback export' }] }] : [];
+          return { start: a, end: b, absent: away, uncovered: areas.reduce((n, x) => n + x.uncovered, 0), areas };
+        }),
+      };
+    }
     case 'listPeople': return people;
     case 'getIssueKnowledge': {
       const key = String((payload as { key?: string } | undefined)?.key ?? 'PAY-1');

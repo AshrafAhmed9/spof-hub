@@ -11,10 +11,11 @@ import { useHost } from './host';
 import { IssuePanel } from './IssuePanel';
 import { fmtTime } from './util';
 
+const Timeline = lazy(() => import('./Timeline').then((m) => ({ default: m.Timeline })));
 const Plans = lazy(() => import('./Plans').then((m) => ({ default: m.Plans })));
 const Setup = lazy(() => import('./Setup').then((m) => ({ default: m.Setup })));
 
-const TABS = ['Coverage', 'Plans', 'Activity', 'Setup'] as const;
+const TABS = ['Coverage', 'Plans', 'Timeline', 'Activity', 'Setup'] as const;
 
 export function App() {
   const [tab, setTab] = useState(0);
@@ -36,7 +37,7 @@ export function App() {
   return (
     <div className="page">
       {host?.product === 'confluence' && <AppHeader />}
-      {mode === 'sample' && <SampleBanner onSetup={() => setTab(3)} onLive={() => switchMode('live')} />}
+      {mode === 'sample' && <SampleBanner onSetup={() => setTab(4)} onLive={() => switchMode('live')} />}
       <div className="tabs-wrap">
         <Tabs id="main" selected={tab} onChange={(i) => { setTab(i); if (i === 0) setNav({ view: 'hub' }); }}>
           <TabList>{TABS.map((t) => <Tab key={t}>{t}</Tab>)}</TabList>
@@ -45,14 +46,15 @@ export function App() {
       </div>
       <main>
         <Suspense fallback={<Loading label="Loading" rows={3} />}>
-        {tab === 0 && <Coverage key={`c${epoch}`} nav={nav} setNav={setNav} onPlan={goPlan} onSetup={() => setTab(3)} onSample={mode === 'live' ? () => switchMode('sample') : undefined} />}
+        {tab === 0 && <Coverage key={`c${epoch}`} nav={nav} setNav={setNav} onPlan={goPlan} onSetup={() => setTab(4)} onSample={mode === 'live' ? () => switchMode('sample') : undefined} />}
         {tab === 1 && (
-          <Plans key={`p${epoch}`} initialLeaver={leaver} mode={mode} onSetup={() => setTab(3)}
+          <Plans key={`p${epoch}`} initialLeaver={leaver} mode={mode} onSetup={() => setTab(4)}
             onRun={(r) => setRuns((x) => [r, ...x])}
             onRunUpdate={(k, p) => setRuns((x) => x.map((r) => (r.planKey === k ? { ...r, ...p } : r)))} />
         )}
-        {tab === 2 && <Activity runs={runs} onPlan={() => setTab(1)} />}
-        {tab === 3 && <Setup key={`s${epoch}`} onStatus={onStatus} />}
+        {tab === 2 && <Timeline key={`t${epoch}`} mode={mode} onSetup={() => setTab(4)} />}
+        {tab === 3 && <Activity runs={runs} onPlan={() => setTab(1)} />}
+        {tab === 4 && <Setup key={`s${epoch}`} onStatus={onStatus} />}
         </Suspense>
       </main>
     </div>

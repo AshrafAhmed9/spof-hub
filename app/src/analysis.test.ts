@@ -49,3 +49,35 @@ describe('plan limit per person (service level)', () => {
     expect(capped.plan.planKey).not.toBe(loose.plan.planKey);
   });
 });
+
+describe('timeline (service level)', () => {
+  it('shows nothing uncovered with no leave, and some when the main holder of work is away', async () => {
+    const { timeline } = await import('./service');
+    const { memoryStore } = await import('./kv');
+    const { topPerItem } = await import('./analysis');
+    const now = Date.UTC(2026, 10, 10);
+    const s = loadSample(now);
+    const tally = new Map<string, number>();
+    for (const t of topPerItem(s.graph, now)) tally.set(t.personId, (tally.get(t.personId) ?? 0) + 1);
+    const deps: any = { store: memoryStore(), now: () => now, api: {}, sample: () => s };
+    // The sample company has people whose absence leaves items with nobody who knows them; find one.
+    let holder = '';
+    for (const id of [...tally.keys()]) {
+      const t = await timeline(deps, 'sample', { absences: [{ personId: id, from: now, to: now + 6 * 86_400_000 }], weeks: 1 });
+      if (t.steps[0]!.uncovered > 0) { holder = id; break; }
+    }
+    expect(holder).not.toBe('');
+    const none = await timeline(deps, 'sample', { absences: [], weeks: 4 });
+    expect(none.steps).toHaveLength(4);
+    expect(none.steps.every((x) => x.uncovered === 0)).toBe(true);
+    const away = await timeline(deps, 'sample', { absences: [{ personId: holder, from: now + 7 * 86_400_000, to: now + 13 * 86_400_000 }], weeks: 4 });
+    expect(away.steps[0]!.uncovered).toBe(0);
+    expect(away.steps[1]!.absent.map((p) => p.id)).toEqual([holder]);
+    expect(away.steps[1]!.uncovered).toBeGreaterThan(0);
+    expect(away.steps[1]!.areas[0]!.items.length).toBe(away.steps[1]!.areas[0]!.uncovered);
+    expect(away.steps[2]!.uncovered).toBe(0);
+    // Unknown people and reversed dates are ignored rather than throwing.
+    const odd = await timeline(deps, 'sample', { absences: [{ personId: 'nobody', from: now, to: now + 1 }, { personId: holder, from: now + 5, to: now }], weeks: 2 });
+    expect(odd.steps.every((x) => x.absent.length === 0)).toBe(true);
+  });
+});

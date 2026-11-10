@@ -94,4 +94,26 @@ export const RESOLVERS = {
   undoPlan: 'undoPlan',                 // ({planKey}) => UndoResult
   listPeople: 'listPeople',             // () => {id,name,team?}[]
   getIssueKnowledge: 'getIssueKnowledge', // ({key}) => IssueKnowledge
+  getTimeline: 'getTimeline',           // (TimelineRequest) => TimelineResponse
 } as const;
+
+export interface TimelineRequest {
+  /** People who are away. Days are UTC calendar days, `to` inclusive. */
+  absences: Array<{ personId: string; from: number; to: number }>;
+  /** First day shown (epoch ms). Default: today. */
+  start?: number;
+  /** Number of weeks shown. Default 8, at most 26. */
+  weeks?: number;
+}
+export interface TimelineResponse {
+  mode: Mode;
+  partial: boolean;
+  notes: string[];
+  steps: Array<{
+    start: number;
+    end: number;
+    absent: Array<{ id: string; name: string }>;
+    uncovered: number;
+    areas: Array<{ area: string; uncovered: number; items: Array<{ id: string; title: string }> }>;
+  }>;
+}

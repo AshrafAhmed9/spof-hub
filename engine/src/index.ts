@@ -7,3 +7,4 @@ export * from './explain';
 export * from './plan';
 export { PHRASES } from './phrases';
 export * from './assign';
+export * from './timeline';

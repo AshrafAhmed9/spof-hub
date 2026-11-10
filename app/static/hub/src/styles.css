@@ -121,3 +121,11 @@ main{min-height:320px}
 .panel-note{margin:0;color:var(--ds-text-subtle,#505258);font:var(--ds-font-body,0.875rem/1.4 system-ui)}
 
 .hint{font:var(--ds-font-body-small,400 12px/16px system-ui);color:var(--ds-text-subtle,#44546f)}
+
+.chip{border:1px solid var(--ds-border,#dfe1e6);border-radius:16px;padding:4px 12px}
+.linklike{background:none;border:0;padding:0;color:var(--ds-link,#0c66e4);cursor:pointer;font:inherit;text-decoration:underline}
+.grid{border-collapse:collapse;width:100%}
+.grid th,.grid td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--ds-border,#dfe1e6);white-space:nowrap}
+.grid td.hot{background:var(--ds-background-warning,#fff7d6);font-weight:600}
+.block{display:block;font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}

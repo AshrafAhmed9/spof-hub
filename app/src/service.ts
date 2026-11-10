@@ -3,13 +3,13 @@ import { route } from './api';
 import { applyPlan, undoPlan, type ApplyDeps } from './apply';
 import { assembleGraph, filterVisible, pruneGraph } from './adapters';
 import { computeCoverage, currentAssignee, MIN_EVIDENCE, SINGLE_POINT, topPerItem } from './analysis';
-import { buildHandoverPlan, explainConcentration, isBot, type Graph, type HandoverPlan, type Person } from './engine';
+import { absenceTimeline, buildHandoverPlan, explainConcentration, isBot, type Graph, type HandoverPlan, type Person } from './engine';
 import { indexKeys, type ScanDeps } from './scan';
 import { loadSample, type SampleOrg } from './sample';
 import { TwgClient } from './twgClient';
 import { liftOf, mergeTwg } from './twgIndex';
 import type { IndexedItem } from './types';
-import type { CoverageResponse, IssueKnowledge, TeamworkGraphLift, Mode, PlanRequest, PlanResponse, RescanResult, SetupCheck, SetupStatus } from '../shared/contract';
+import type { CoverageResponse, TimelineRequest, TimelineResponse, IssueKnowledge, TeamworkGraphLift, Mode, PlanRequest, PlanResponse, RescanResult, SetupCheck, SetupStatus } from '../shared/contract';
 
 export interface Deps extends ScanDeps {
   twg?: () => TwgClient;
@@ -296,4 +296,29 @@ export function listPeople(g: Graph): Array<{ id: string; name: string; team?: s
     .filter((p) => p.active !== false && !p.isBot && !isBot(p.name))
     .map((p) => ({ id: p.id, name: p.name, ...(p.team ? { team: p.team } : {}) }))
     .sort((a, b) => (a.name < b.name ? -1 : 1));
+}
+
+/** Which areas have nobody left who knows an item, week by week, given who is away. Read-only. */
+export async function timeline(deps: Deps, mode: Mode, req: TimelineRequest): Promise<TimelineResponse> {
+  const weeks = Math.min(26, Math.max(1, Math.floor(req.weeks ?? 8)));
+  const day = 86_400_000;
+  const start = Math.floor((req.start ?? deps.now()) / day) * day;
+  const loaded = await loadGraph(deps, mode);
+  const known = new Set(loaded.graph.people.map((p) => p.id));
+  const absences = (req.absences ?? []).filter((a) => known.has(a.personId) && Number.isFinite(a.from) && Number.isFinite(a.to) && a.to >= a.from);
+  const steps = absenceTimeline(loaded.graph, absences, start, weeks, loaded.now);
+  const names = new Map(loaded.graph.people.map((p) => [p.id, p.name]));
+  const titles = new Map(loaded.graph.items.map((i) => [i.id, i.title]));
+  return {
+    mode,
+    partial: loaded.partial,
+    notes: loaded.notes,
+    steps: steps.map((s) => ({
+      start: s.start,
+      end: s.end,
+      absent: s.absent.map((id) => ({ id, name: names.get(id) ?? 'An unnamed account' })),
+      uncovered: s.uncovered,
+      areas: s.areas.map((a) => ({ area: a.area, uncovered: a.uncovered, items: a.itemIds.map((id) => ({ id, title: titles.get(id) ?? id })) })),
+    })),
+  };
 }
