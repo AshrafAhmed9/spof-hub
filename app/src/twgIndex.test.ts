@@ -193,12 +193,16 @@ describe('ablation counter', () => {
 
   it('counts only items and links REST does not supply, for the person whose read produced them', async () => {
     const c = await coverage(await site('reader'), 'live');
-    expect(c.teamworkGraph).toEqual({
+    const { ablation, ...counts } = c.teamworkGraph!;
+    expect(counts).toEqual({
       itemsOnlyFromGraph: 2, // ABC-7 and the PR
       edgesOnlyFromGraph: 4, // u2->ABC-1, u2->ABC-7, u2 authored PR, u1 reviewed PR
       byKind: { items: { workItem: 1, pr: 1 }, edges: { linked: 2, authored: 1, reviewed: 1 } },
       withheldRecords: 0,
     });
+    // The ablation counts the same site twice. Adding Teamwork Graph adds the PR and ABC-7 to what was scanned.
+    expect(ablation!.withGraph.itemsScanned).toBeGreaterThan(ablation!.restOnly.itemsScanned);
+    expect(ablation!.restOnly.itemsScanned).toBe(c.totals.itemsScanned - 2);
   });
 
   it('withholds PR records from another viewer and says so', async () => {
