@@ -38,3 +38,6 @@ The app's successor ranking is reported as "supported" only if, pooled over the 
 - Open-source volunteers are not a company's assigned teammates.
 - Assignment, workload and team signals are not tested here.
 - The 8-pair cap means the per-project numbers are samples.
+
+## Addendum A (written after the untouched result, before any development-set run)
+The untouched result showed the engine level with the item-level rules. To see whether the walk's restart probability explains this, the sweep restart in {0.05, 0.15, 0.30, 0.50} is run on the DEVELOPMENT projects (KAFKA, FLINK, HBASE) with the same pair rules, and hit@3 is compared pooled. If a value other than 0.15 beats 0.15 by more than 0.03 hit@3, that value is run once on the five untouched projects and reported beside the frozen result as "Engine (restart tuned on development data)". The frozen 0.15 result stays the headline and is not replaced. If none qualifies, nothing changes.
