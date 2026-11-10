@@ -41,3 +41,14 @@ So the walk over the ownership graph mostly rediscovers "who else has worked on 
 - It supports the claim "the suggested successors come from the item's own history and are far better than chance". It does not support "better than a simple rule".
 - In the app, the load, team and Teamwork Graph terms add information that was not available here (no historical workload or team data exists at T). They are untested by this backtest.
 - First commenter after T is a proxy for who took the work over, not a recorded handover. Open-source volunteers are not an assigned team. Per-leaver sampling (8 pairs) was a compute limit.
+
+## Addendum A: restart sweep on development projects (KAFKA, FLINK, HBASE; 326 pairs)
+
+| Restart | hit@1 | hit@3 | MRR |
+|---|---|---|---|
+| 0.05 | 0.22 | 0.35 | 0.33 |
+| 0.15 (shipped) | 0.26 | 0.39 | 0.36 |
+| 0.30 | 0.25 | 0.40 | 0.36 |
+| 0.50 | 0.24 | 0.40 | 0.35 |
+
+For reference on the same pairs: most active 0.25, top on item 0.38 (hit@3). No value beat 0.15 by the declared 0.03, so nothing was tuned and the frozen result above stands. The restart probability does not explain why the walk tracks the item-level rule.

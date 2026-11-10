@@ -25,6 +25,8 @@ Most handover tools move assignees after someone has already left. This one star
 
 On five Apache projects that weren't used to design the method, items held mostly by someone who later left stayed unanswered for 30 days more often than other items. The direction held in four of five projects. A plain comment-count share did slightly better than the decayed score, and an assignee-only rule missed most of what was concentrated. The result supports the coverage claim (items that assignee-based tools can't see) and doesn't support a claim to predict problems. Details, caveats and the protocol are in `backtest/RESULTS.md` and `backtest/DEFINITIONS.md`.
 
+A second check asked whether the suggested successor is the person who actually picked the work up after a contributor left. Over 518 items from the same projects, the suggestion was in the top three 42% of the time, against 2% for a random pick and 41% for "whoever commented most on that item". So the suggestions come from the item's real history and are far better than chance, but this data doesn't show them beating that simple rule. See `backtest/RESULTS_SUCCESSOR.md`.
+
 ## Installing on Jira and Confluence
 
 The app has a page in both products. Forge keeps a separate store for each product's installation, so each one has its own scan. Run a scan in the product where you want to use it. The Rovo agent and the MCP tools read the index of the product they are called from, so a site with both installed shows two Depth Chart agents.

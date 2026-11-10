@@ -5,6 +5,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { suggestSuccessors, type Edge, type Graph } from '../engine/src/index';
 
 const project = process.argv[2];
+const restart = process.argv[3] ? Number(process.argv[3]) : undefined;
+const tag = restart === undefined ? '' : `_r${restart}`;
 const data = JSON.parse(readFileSync(new URL(`./succ_${project}.json`, import.meta.url), 'utf8')) as {
   items: Array<{ key: string; created: number; comments: Array<[number, string]> }>;
   pairs: Array<{ L: string; T: number; key: string; P: string }>;
@@ -55,7 +57,7 @@ for (const [L, pairs] of byLeaver) {
     const withFallback = (first: string[]) => [...first, ...activeOrder.filter((p) => !first.includes(p))];
     const topOnItem = [...counts.keys()].filter((p) => poolSet.has(p)).sort((a, b) => counts.get(b)! - counts.get(a)! || (a < b ? -1 : 1));
     const lastOnItem = [...lastAt.keys()].filter((p) => poolSet.has(p)).sort((a, b) => lastAt.get(b)! - lastAt.get(a)! || (a < b ? -1 : 1));
-    const ranked = suggestSuccessors(graph, pr.key, T * 1000, { k: pool.length, exclude: [L, ...exclude] }).map((s) => s.personId);
+    const ranked = suggestSuccessors(graph, pr.key, T * 1000, { k: pool.length, exclude: [L, ...exclude], ...(restart === undefined ? {} : { restart }) }).map((s) => s.personId);
     out.push({
       L, key: pr.key, P: pr.P, n: pool.length,
       engine: rankIn(withFallback(ranked)),
@@ -69,5 +71,5 @@ for (const [L, pairs] of byLeaver) {
   done++;
   if (done % 5 === 0) console.error(project, done, '/', byLeaver.size, 'leavers');
 }
-writeFileSync(new URL(`./ranks_${project}.json`, import.meta.url), JSON.stringify(out));
+writeFileSync(new URL(`./ranks_${project}${tag}.json`, import.meta.url), JSON.stringify(out));
 console.error(project, 'done', out.length, 'pairs');
