@@ -130,6 +130,12 @@ export async function mockInvoke(name: string, payload?: unknown): Promise<unkno
         : ({ state: 'running', done: scanTicks * 300, total: 1200, message: 'Scanning PAY' } satisfies ScanProgress);
     }
     case 'listPeople': return people;
+    case 'getIssueKnowledge': {
+      const key = String((payload as { key?: string } | undefined)?.key ?? 'PAY-1');
+      if (key.endsWith('-0')) return { state: 'not-indexed', key };
+      return { state: 'ok', key, holder: { name: 'Priya Nair', share: 0.86 }, contributions: 7, assignee: null, singlePoint: true, indexedAt: Date.now() - 36e5,
+        evidence: ['Only Priya Nair has answered here (6 of 7 replies)', 'Authored 2 of 3 page versions linked to this item'] };
+    }
     case 'buildPlan': return buildPlan(payload as PlanRequest);
     case 'applyPlan': {
       const req = payload as ApplyRequest;

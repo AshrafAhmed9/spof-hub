@@ -2,14 +2,14 @@
 import { route } from './api';
 import { applyPlan, undoPlan, type ApplyDeps } from './apply';
 import { assembleGraph, filterVisible, pruneGraph } from './adapters';
-import { computeCoverage, currentAssignee } from './analysis';
-import { buildHandoverPlan, isBot, type Graph, type HandoverPlan, type Person } from './engine';
+import { computeCoverage, currentAssignee, MIN_EVIDENCE, SINGLE_POINT, topPerItem } from './analysis';
+import { buildHandoverPlan, explainConcentration, isBot, type Graph, type HandoverPlan, type Person } from './engine';
 import { indexKeys, type ScanDeps } from './scan';
 import { loadSample, type SampleOrg } from './sample';
 import { TwgClient } from './twgClient';
 import { liftOf, mergeTwg } from './twgIndex';
 import type { IndexedItem } from './types';
-import type { CoverageResponse, TeamworkGraphLift, Mode, PlanRequest, PlanResponse, RescanResult, SetupCheck, SetupStatus } from '../shared/contract';
+import type { CoverageResponse, IssueKnowledge, TeamworkGraphLift, Mode, PlanRequest, PlanResponse, RescanResult, SetupCheck, SetupStatus } from '../shared/contract';
 
 export interface Deps extends ScanDeps {
   twg?: () => TwgClient;
@@ -108,6 +108,35 @@ export async function coverage(deps: Deps, mode: Mode, fresh = false): Promise<C
 export async function clearCoverageCache(deps: Pick<Deps, 'store'>): Promise<void> {
   const keys = await deps.store.list<unknown>('cov:');
   await Promise.all(keys.map((k) => deps.store.del(k.key)));
+}
+
+/**
+ * Issue panel: one record read plus a permission check on that one key, so opening an issue costs almost nothing
+ * however large the index is.
+ */
+export async function issueKnowledge(deps: Deps, key: string): Promise<IssueKnowledge> {
+  if (!/^[A-Z][A-Z0-9_]*-\d+$/.test(key)) return { state: 'not-indexed', key };
+  const rec = await deps.store.get<IndexedItem>(`item:${key}`);
+  if (!rec) return { state: 'not-indexed', key };
+  const vis = await filterVisible(deps.api, [key], deps.retry);
+  if (!vis.visible.has(key)) return { state: 'hidden', key };
+  const ids = [...new Set(rec.edges.map((e) => e.person))];
+  const people = (await Promise.all(ids.map((id) => deps.store.get<Person>(`person:${id}`)))).filter((p): p is Person => !!p);
+  const g = assembleGraph([rec], people);
+  const now = deps.now();
+  const top = topPerItem(g, now)[0];
+  if (!top) return { state: 'ok', key, contributions: 0, singlePoint: false, indexedAt: rec.meta.indexedAt };
+  const name = (id: string) => g.people.find((p) => p.id === id && p.name && p.name !== p.id)?.name ?? 'An unnamed account';
+  return {
+    state: 'ok',
+    key,
+    holder: { name: name(top.personId), share: Math.round(top.share * 100) / 100 },
+    contributions: top.contributions,
+    assignee: top.assignee ? name(top.assignee) : null,
+    singlePoint: top.share >= SINGLE_POINT && top.contributions >= MIN_EVIDENCE,
+    evidence: explainConcentration(g, key, top.personId, now).reasons.slice(0, 3),
+    indexedAt: rec.meta.indexedAt,
+  };
 }
 
 export function findPerson(g: Graph, text: string): { person?: Person; error?: string } {

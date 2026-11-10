@@ -59,6 +59,20 @@ export interface UndoResult { planKey: string; reverted: number; failed: { itemI
 export interface ScanProgress { state: 'idle' | 'running' | 'done' | 'error'; done: number; total: number; message?: string; /** Teamwork Graph read progress, when that step ran. */ twg?: { done: number; total: number; failed: number }; /** True when the scan only advances while this page is open. */ needsPage?: boolean }
 
 // Resolver names (invoke from UI via @forge/bridge):
+/** What the issue panel shows for one issue. Read from that issue's own index record, not the whole index. */
+export interface IssueKnowledge {
+  state: 'ok' | 'not-indexed' | 'hidden';
+  key: string;
+  /** Present when state is ok and anybody has contributed. */
+  holder?: { name: string; share: number };
+  contributions?: number;
+  assignee?: string | null;
+  /** True when the item meets the same rule as the Coverage headline. */
+  singlePoint?: boolean;
+  evidence?: string[];
+  indexedAt?: number;
+}
+
 export const RESOLVERS = {
   getSetupStatus: 'getSetupStatus',     // () => SetupStatus
   getCoverage: 'getCoverage',           // () => CoverageResponse
@@ -69,4 +83,5 @@ export const RESOLVERS = {
   rescan: 'rescan',                     // ({planKey}) => RescanResult
   undoPlan: 'undoPlan',                 // ({planKey}) => UndoResult
   listPeople: 'listPeople',             // () => {id,name,team?}[]
+  getIssueKnowledge: 'getIssueKnowledge', // ({key}) => IssueKnowledge
 } as const;

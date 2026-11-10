@@ -1,6 +1,6 @@
 import { RESOLVERS } from '../../../shared/contract';
 import type {
-  ApplyRequest, ApplyResult, CoverageResponse, PlanRequest, PlanResponse,
+  ApplyRequest, ApplyResult, CoverageResponse, IssueKnowledge, PlanRequest, PlanResponse,
   RescanResult, ScanProgress, SetupStatus, UndoResult,
 } from '../../../shared/contract';
 
@@ -69,4 +69,5 @@ export const api = {
   rescan: (planKey: string) => call<RescanResult>(RESOLVERS.rescan, { planKey }),
   undoPlan: (planKey: string) => call<UndoResult>(RESOLVERS.undoPlan, { planKey }),
   listPeople: () => call<Person[]>(RESOLVERS.listPeople),
+  getIssueKnowledge: (key: string) => call<IssueKnowledge>(RESOLVERS.getIssueKnowledge, { key }),
 };

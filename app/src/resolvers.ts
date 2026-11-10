@@ -3,7 +3,7 @@
 // Sample mode never writes: no KVS, no Jira, no queue.
 import { RESOLVERS } from '../shared/contract';
 import type { ApplyRequest, ApplyResult, CoverageResponse, PlanRequest, PlanResponse, RescanResult, ScanProgress, SetupStatus, UndoResult } from '../shared/contract';
-import { apply, buildPlanFor, clearCoverageCache, coverage, listPeople, loadGraph, modeOf, rescan, setupStatus, undo, type Deps } from './service';
+import { apply, buildPlanFor, clearCoverageCache, coverage, issueKnowledge, listPeople, loadGraph, modeOf, rescan, setupStatus, undo, type Deps } from './service';
 import { getProgress, hasPending, pumpScan, startScan } from './scan';
 import { advanceTwg } from './twgIndex';
 import { SampleMissingError } from './sample';
@@ -80,6 +80,8 @@ export function makeHandlers(deps: Deps) {
       await clearCoverageCache(deps);
       return undo(deps, p?.planKey);
     },
+
+    [RESOLVERS.getIssueKnowledge]: (p?: Payload) => guard(() => issueKnowledge(deps, String(p?.key ?? ''))),
 
     [RESOLVERS.listPeople]: async (p?: Payload) => guard(async () => listPeople((await loadGraph(deps, modeOf(p))).graph)),
   };

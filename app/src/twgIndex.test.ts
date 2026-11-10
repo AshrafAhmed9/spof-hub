@@ -250,3 +250,31 @@ describe('setup status', () => {
     }
   });
 });
+
+describe('issue panel knowledge', () => {
+  const rec = (n: number): IndexedItem => ({
+    item: { id: 'ABC-1', kind: 'workItem', title: 'T', open: true, area: 'ABC' } as any,
+    edges: Array.from({ length: n }, (_, i) => ({ person: 'u1', item: 'ABC-1', kind: 'commented', at: NOW - i * 1000, weight: 1 })) as any,
+    meta: { indexedAt: NOW },
+  });
+  const depsFor = async (n: number, visible = true): Promise<Deps> => {
+    const store = memoryStore();
+    await store.set('item:ABC-1', rec(n));
+    await store.set('person:u1', { id: 'u1', name: 'Dana' });
+    return { api: fakeApi({}, { keys: visible ? ['ABC-1'] : [], pages: [] }), store, queue: { push: async () => {} }, now: () => NOW };
+  };
+  it('reports the holder and single-point status from that one record', async () => {
+    const { issueKnowledge } = await import('./service');
+    const k = await issueKnowledge(await depsFor(4), 'ABC-1');
+    expect(k).toMatchObject({ state: 'ok', holder: { name: 'Dana', share: 1 }, contributions: 4, singlePoint: true });
+  });
+  it('does not call a barely touched issue a single point', async () => {
+    const { issueKnowledge } = await import('./service');
+    expect((await issueKnowledge(await depsFor(1), 'ABC-1')).singlePoint).toBe(false);
+  });
+  it('says so when the issue is not indexed, and hides one the viewer cannot see', async () => {
+    const { issueKnowledge } = await import('./service');
+    expect((await issueKnowledge(await depsFor(4), 'ABC-9')).state).toBe('not-indexed');
+    expect((await issueKnowledge(await depsFor(4, false), 'ABC-1')).state).toBe('hidden');
+  });
+});

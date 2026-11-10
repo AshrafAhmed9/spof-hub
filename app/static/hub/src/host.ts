@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { isForge } from './api';
 
-export type Host = { product: 'jira' | 'confluence' | 'unknown'; siteUrl: string };
+export type Host = { product: 'jira' | 'confluence' | 'unknown'; siteUrl: string; /** Set when the page is the Jira issue panel. */ issueKey?: string };
 
 let cached: Promise<Host> | undefined;
 
@@ -10,14 +10,17 @@ export function getHost(): Promise<Host> {
   cached ??= (async (): Promise<Host> => {
     if (!isForge) {
       const p = new URLSearchParams(window.location.search).get('product');
-      return { product: p === 'confluence' ? 'confluence' : 'jira', siteUrl: 'https://example.atlassian.net' };
+      const key = new URLSearchParams(window.location.search).get('issue') ?? undefined;
+      return { product: p === 'confluence' ? 'confluence' : 'jira', siteUrl: 'https://example.atlassian.net', ...(key ? { issueKey: key } : {}) };
     }
     try {
       const { view } = await import('@forge/bridge');
       const ctx = await view.getContext();
-      const type = String((ctx as { extension?: { type?: string } }).extension?.type ?? ctx.moduleKey ?? '');
+      const ext = (ctx as { extension?: { type?: string; issue?: { key?: string } } }).extension;
+      const type = String(ext?.type ?? ctx.moduleKey ?? '');
       const product = type.startsWith('confluence') ? 'confluence' : type.startsWith('jira') ? 'jira' : 'unknown';
-      return { product, siteUrl: ctx.siteUrl ?? '' };
+      const issueKey = type === 'jira:issuePanel' ? ext?.issue?.key : undefined;
+      return { product, siteUrl: ctx.siteUrl ?? '', ...(issueKey ? { issueKey } : {}) };
     } catch {
       return { product: 'unknown', siteUrl: '' };
     }

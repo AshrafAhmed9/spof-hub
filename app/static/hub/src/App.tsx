@@ -8,6 +8,7 @@ import { Coverage, type Nav } from './Coverage';
 import type { Run } from './Plans';
 import { AppHeader, EmptyState, Loading, SampleBanner, useFocusHeading } from './common';
 import { useHost } from './host';
+import { IssuePanel } from './IssuePanel';
 import { fmtTime } from './util';
 
 const Plans = lazy(() => import('./Plans').then((m) => ({ default: m.Plans })));
@@ -29,6 +30,8 @@ export function App() {
   const onStatus = useCallback((s: SetupStatus) => setSetup(s), []);
   const switchMode = (m: 'live' | 'sample') => { setApiMode(m); setMode(m); setNav({ view: 'hub' }); setTab(0); setEpoch((n) => n + 1); };
   const goPlan = (id: string) => { setLeaver(id); setTab(1); };
+
+  if (host?.issueKey) return <div className="page panel"><IssuePanel issueKey={host.issueKey} /></div>;
 
   return (
     <div className="page">
