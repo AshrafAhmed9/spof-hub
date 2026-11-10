@@ -55,11 +55,16 @@ export const onProductEvent = async (event: unknown) => {
   await handleProductEvent(deps(), event);
 };
 
+// Shape of each call, so a call from an outside MCP client can be compared with one from the Rovo agent. No values are logged.
+function logCall(name: string, p: RovoPayload, ctx?: any) {
+  console.log('action call', name, JSON.stringify({ payload: Object.keys(p ?? {}), payloadCtx: Object.keys(p?.context ?? {}), ctx: Object.keys(ctx ?? {}), installContext: ctx?.installContext, installation: ctx?.installation, principal: ctx?.principal?.type, moduleKey: (p?.context as any)?.moduleKey }));
+}
+
 // Rovo actions (shared by rovo:agent and rovo:mcp).
-export const findSinglePointsAction = (p: RovoPayload) => findSinglePoints.run(deps(), p);
-export const atRiskForPersonAction = (p: RovoPayload) => atRiskForPerson.run(deps(), p);
-export const suggestSuccessorAction = (p: RovoPayload) => suggestSuccessor.run(deps(), p);
-export const handoverBriefAction = (p: RovoPayload) => handoverBrief.run(deps(), p);
+export const findSinglePointsAction = (p: RovoPayload, ctx?: any) => { logCall('findSinglePoints', p, ctx); return findSinglePoints.run(deps(undefined, p?.context), p); };
+export const atRiskForPersonAction = (p: RovoPayload, ctx?: any) => { logCall('atRiskForPerson', p, ctx); return atRiskForPerson.run(deps(undefined, p?.context), p); };
+export const suggestSuccessorAction = (p: RovoPayload, ctx?: any) => { logCall('suggestSuccessor', p, ctx); return suggestSuccessor.run(deps(undefined, p?.context), p); };
+export const handoverBriefAction = (p: RovoPayload, ctx?: any) => { logCall('handoverBrief', p, ctx); return handoverBrief.run(deps(undefined, p?.context), p); };
 
 // Weekly personal data report (scheduledTrigger). Throws when anything could not be handled, so Forge logs a failure.
 export const privacySweep = async () => {

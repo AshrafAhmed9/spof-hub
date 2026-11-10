@@ -30,7 +30,10 @@ export function absence(p: RovoPayload, now: number): { from: number; to: number
 }
 
 export async function graphOrError(deps: Deps): Promise<LoadedGraph> {
-  return loadGraph(deps, 'live');
+  const g = await loadGraph(deps, 'live');
+  // Logged so a call from an outside client can be diagnosed: an empty result and a hidden one look the same to the caller.
+  console.log('action graph', JSON.stringify({ items: g.graph.items.length, people: g.graph.people.length, partial: g.partial, notes: g.notes.slice(0, 3), viewer: deps.viewerId ? 'set' : 'none' }));
+  return g;
 }
 
 export function pick(g: Graph, who: string) {

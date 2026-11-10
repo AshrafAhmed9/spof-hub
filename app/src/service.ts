@@ -37,6 +37,17 @@ export function modeOf(payload: any): Mode {
   return payload?.mode === 'sample' ? 'sample' : 'live';
 }
 
+/** Permission results are the slow part of every live read, so they are kept per viewer for a few minutes. Cleared with the coverage cache. */
+async function cachedVisible(deps: Deps, ids: string[]): Promise<{ visible: Set<string>; notes: string[] }> {
+  const key = `cov:vis:${deps.viewerId ?? 'anon'}`;
+  const hit = await deps.store.get<{ at: number; ids: string[]; asked: number; notes: string[] }>(key).catch(() => undefined);
+  if (hit && hit.asked === ids.length && deps.now() - hit.at < COVERAGE_TTL_MS) return { visible: new Set(hit.ids), notes: hit.notes };
+  const vis = await filterVisible(deps.api, ids, deps.retry);
+  // A result with failed checks is not kept, so the next read tries again.
+  if (vis.notes.length === 0) await deps.store.set(key, { at: deps.now(), ids: [...vis.visible], asked: ids.length, notes: vis.notes }).catch(() => undefined);
+  return vis;
+}
+
 export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   if (mode === 'sample') {
     const s = (deps.sample ?? (() => loadSample(deps.now())))();
@@ -46,12 +57,12 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   const recs = await deps.store.list<IndexedItem>('item:');
   const people = (await deps.store.list<Person>('person:')).map((p) => p.value);
   if (recs.length === 0) {
-    return { graph: { people: [], items: [], edges: [] }, now: deps.now(), partial: true, notes: ['The index is empty. Run a scan first; an empty result here is not evidence that nothing is at risk.'], mode };
+    return { graph: { people: [], items: [], edges: [] }, now: deps.now(), partial: true, notes: ['The index is empty for this product. Jira and Confluence each keep their own index, so open Depth Chart in this product and run a scan there. An empty result here is not evidence that nothing is at risk.'], mode };
   }
   const restRecs = recs.map((r) => r.value);
   const twg = await mergeTwg(deps, restRecs);
   // Only Jira keys and pages can be permission-checked with REST; PRs and goals are gated by viewer in mergeTwg.
-  const vis = await filterVisible(deps.api, [...restRecs.map((r) => r.item.id), ...twg.needsCheck], deps.retry);
+  const vis = await cachedVisible(deps, [...restRecs.map((r) => r.item.id), ...twg.needsCheck]);
   notes.push(...vis.notes);
   const hidden = recs.length - restRecs.filter((r) => vis.visible.has(r.item.id)).length;
   if (hidden > 0 && vis.notes.length === 0) notes.push(`${hidden} indexed items are hidden from you by permissions and are not counted.`);

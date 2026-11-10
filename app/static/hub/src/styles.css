@@ -113,3 +113,6 @@ main{min-height:320px}
 }
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 .h3like{font:var(--ds-font-heading-small,600 16px/20px system-ui)}
+.scope{display:flex;flex-direction:column;gap:var(--ds-space-050,4px);font:var(--ds-font-body-small,0.8125rem/1.3 system-ui);color:var(--ds-text-subtle,#505258);text-align:left}
+.scope input{min-width:180px;padding:7px 8px;border:1px solid var(--ds-border-input,#8c8f97);border-radius:var(--ds-radius-small,3px);background:var(--ds-background-input,#fff);color:var(--ds-text,#292a2e);font:inherit}
+.scope input:focus-visible{outline:2px solid var(--ds-border-focused,#4688ec);outline-offset:1px}

@@ -58,9 +58,12 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
   // Pick up a scan that is already running when the page opens.
   useEffect(() => { poll(); return () => window.clearTimeout(timer.current); }, [poll]);
 
+  const [scope, setScope] = useState('');
   const startScan = () => {
     setScanErr(null);
-    api.startScan().then((p) => { setScan(p); timer.current = window.setTimeout(poll, 1500); }, (e) => setScanErr(e));
+    // Optional project keys, so a big site can be scanned a project at a time.
+    const keys = scope.split(/[\s,]+/).map((k) => k.trim().toUpperCase()).filter(Boolean);
+    api.startScan(keys.length ? keys : undefined).then((p) => { setScan(p); timer.current = window.setTimeout(poll, 1500); }, (e) => setScanErr(e));
   };
 
   const scanning = scan?.state === 'running';
@@ -84,7 +87,8 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
               ? 'Scan this site to find work that depends on one person. Or look around first with an example company: nothing in your site changes.'
               : 'Scan this site to find work that depends on one person.'}
           >
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-end' }}>
+              
               <PrimaryButton onClick={startScan} isDisabled={scanning}>{scanning ? 'Scanning' : 'Scan this site'}</PrimaryButton>
               {onSample && <Button onClick={onSample}>Explore the example company</Button>}
             </div>
@@ -151,7 +155,13 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
         <div className="stack-sm">
           <h1 ref={h} tabIndex={-1}>Coverage</h1>
         </div>
-        <Button onClick={startScan} isDisabled={scanning}>{scanning ? 'Scanning' : 'Scan again'}</Button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <label className="scope">
+                <span>Only these projects (optional)</span>
+                <input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="e.g. MOB, CX" disabled={scanning} />
+              </label>
+          <Button onClick={startScan} isDisabled={scanning}>{scanning ? 'Scanning' : 'Scan again'}</Button>
+        </div>
       </div>
       {scanning && scan && <ScanBar p={scan} />}
       {scan?.state === 'error' && <ErrorPanel error={new Error(scan.message ?? 'The scan stopped.')} onRetry={startScan} what="the scan" />}
