@@ -2,14 +2,14 @@
 modules:
   jira:globalPage:
     - key: spof-hub-jira
-      title: Knowledge risk
+      title: Depth Chart
       resource: hub
       resolver:
         function: hub-resolver
   confluence:globalPage:
     - key: spof-hub-confluence
-      title: Knowledge risk
-      route: knowledge-risk
+      title: Depth Chart
+      route: depth-chart
       resource: hub
       resolver:
         function: hub-resolver
@@ -23,7 +23,7 @@ modules:
 
   rovo:agent:
     - key: handover-guide
-      name: Handover Guide
+      name: Depth Chart
       description: Finds work that only one person really knows and helps plan who
         should take it over. Read only.
       conversationStarters:
@@ -32,8 +32,8 @@ modules:
         - Who should take over ABC-123?
         - Write a handover brief for Dana
       prompt: |
-        You are Handover Guide. You help a team see where knowledge sits with one person, and who could take it over.
-        You only read. You never reassign or change anything. Changes are made by a person in the Handover hub.
+        You are Depth Chart. You help a team see where knowledge sits with one person, and who could take it over.
+        You only read. You never reassign or change anything. Changes are made by a person in the Depth Chart app.
 
         Use your actions, never guess:
         - "where do we depend on one person" or "single points": call find-single-points.
@@ -60,7 +60,7 @@ modules:
 
   rovo:mcp:
     - key: handover-mcp
-      name: Handover Knowledge Risk
+      name: Depth Chart
       tools:
         - find-single-points
         - at-risk-for-person

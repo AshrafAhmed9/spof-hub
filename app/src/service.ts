@@ -74,9 +74,29 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   return { graph, now: deps.now(), partial: notes.length > 0, notes, mode, ...(lift ? { lift } : {}) };
 }
 
-export async function coverage(deps: Deps, mode: Mode): Promise<CoverageResponse> {
+const COVERAGE_TTL_MS = 5 * 60_000;
+
+/**
+ * Live coverage is cached per viewer for a few minutes: building it re-checks permissions on every
+ * indexed item, which took ~20 s on a 5,000-item site. A new scan clears the cache (see clearCoverageCache).
+ * Sample mode is cheap and never cached.
+ */
+export async function coverage(deps: Deps, mode: Mode, fresh = false): Promise<CoverageResponse> {
+  const key = `cov:${deps.viewerId ?? 'anon'}`;
+  if (mode === 'live' && !fresh) {
+    const hit = await deps.store.get<{ at: number; value: CoverageResponse }>(key).catch(() => undefined);
+    if (hit && deps.now() - hit.at < COVERAGE_TTL_MS) return hit.value;
+  }
   const g = await loadGraph(deps, mode);
-  return { mode, generatedAt: g.now, partial: g.partial, notes: g.notes, ...computeCoverage(g.graph, g.now), ...(g.lift ? { teamworkGraph: g.lift } : {}) };
+  const value: CoverageResponse = { mode, generatedAt: g.now, partial: g.partial, notes: g.notes, ...computeCoverage(g.graph, g.now), ...(g.lift ? { teamworkGraph: g.lift } : {}) };
+  // An empty index is a "run a scan" state, not a result worth keeping.
+  if (mode === 'live' && value.totals.itemsScanned > 0) await deps.store.set(key, { at: deps.now(), value }).catch(() => undefined);
+  return value;
+}
+
+export async function clearCoverageCache(deps: Pick<Deps, 'store'>): Promise<void> {
+  const keys = await deps.store.list<unknown>('cov:');
+  await Promise.all(keys.map((k) => deps.store.del(k.key)));
 }
 
 export function findPerson(g: Graph, text: string): { person?: Person; error?: string } {

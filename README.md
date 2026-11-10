@@ -1,6 +1,6 @@
-# Knowledge risk for Jira and Confluence
+# Depth Chart
 
-A Forge app that finds work only one person understands, and helps you cover it before they're away.
+A Forge app for Jira and Confluence that finds work only one person understands, and helps you cover it before they are away.
 
 Most handover tools move assignees after someone has already left. This one starts earlier. It reads who actually answered questions, commented, reviewed and wrote the pages in each area, and shows where one person holds most of it. It then suggests who could cover each item, lets you approve the changes, applies them, and re-scans to show what's left. Every change can be undone.
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ApiLike } from './api';
 import { memoryStore } from './kv';
-import { coverage, setupStatus, type Deps } from './service';
+import { clearCoverageCache, coverage, setupStatus, type Deps } from './service';
 import { getProgress } from './scan';
 import { TwgClient } from './twgClient';
 import { advanceTwg, goalRecord, pageRecord, pullRecord, workRecord, type TwgRecord } from './twgIndex';
@@ -220,6 +220,24 @@ describe('ablation counter', () => {
     (deps as any).api = fakeApi({}, { keys: ['ABC-1'], pages: [] });
     const c = await coverage(deps, 'live');
     expect(c.teamworkGraph?.byKind.items).toEqual({ pr: 1 });
+  });
+});
+
+describe('coverage cache', () => {
+  it('serves a repeat read from the cache until it is cleared or forced fresh', async () => {
+    const store = memoryStore();
+    await store.set('item:ABC-1', restIssue('ABC-1', 'u1'));
+    let t = NOW;
+    const deps: Deps = { api: fakeApi({}, { keys: ['ABC-1'], pages: [] }), store, queue: { push: async () => {} }, now: () => t, viewerId: 'u1' };
+    const a = await coverage(deps, 'live');
+    expect(a.totals.itemsScanned).toBe(1);
+    await store.set('item:ABC-2', restIssue('ABC-2', 'u1'));
+    expect((await coverage(deps, 'live')).totals.itemsScanned).toBe(1); // cached
+    t += 6 * 60_000;
+    expect((await coverage(deps, 'live')).generatedAt).toBe(t); // expired, rebuilt
+    await clearCoverageCache(deps);
+    expect((await store.list('cov:')).length).toBe(0);
+    expect((await coverage(deps, 'live', true)).totals.itemsScanned).toBeGreaterThanOrEqual(1);
   });
 });
 

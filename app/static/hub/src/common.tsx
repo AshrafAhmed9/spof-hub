@@ -101,7 +101,7 @@ export function PrimaryButton(p: React.ComponentProps<typeof Button>) {
 export function AppHeader() {
   return (
     <header className="app-header">
-      <p className="brand">Knowledge risk</p>
+      <p className="brand">Depth Chart</p>
       <p className="small subtle">Find work that depends on one person, then plan who covers it.</p>
     </header>
   );
