@@ -14,6 +14,11 @@ import type { AreaCoverage, CoverageResponse } from '../shared/contract';
 export const SINGLE_POINT = 0.8;
 /** Below this share nobody is called "the" owner. */
 export const OWNER_MIN = 0.5;
+/**
+ * An item needs at least this many recorded contributions before it can be called a single point.
+ * One person creating a ticket nobody touched is not knowledge only they have.
+ */
+export const MIN_EVIDENCE = 3;
 
 export function currentAssignee(g: Graph, itemId: string): string | null {
   let best: { p: string; at: number } | null = null;
@@ -21,12 +26,15 @@ export function currentAssignee(g: Graph, itemId: string): string | null {
   return best?.p ?? null;
 }
 
-export interface ItemTop { itemId: string; personId: string; share: number; assignee: string | null }
+export interface ItemTop { itemId: string; personId: string; share: number; assignee: string | null; contributions: number }
 
 export function topPerItem(g: Graph, now: number, items?: Item[]): ItemTop[] {
   const table = contributionTable(g, now);
   const out: ItemTop[] = [];
   const humans = g.people.filter((p) => !p.isBot && !isBot(p.name));
+  const humanIds = new Set(humans.map((p) => p.id));
+  const counts = new Map<string, number>();
+  for (const e of g.edges) if (humanIds.has(e.person)) counts.set(e.item, (counts.get(e.item) ?? 0) + 1);
   for (const it of items ?? g.items) {
     if (it.kind === 'goal' || !it.open) continue;
     let best: { id: string; s: number } | null = null;
@@ -34,7 +42,7 @@ export function topPerItem(g: Graph, now: number, items?: Item[]): ItemTop[] {
       const s = concentrationOf(table, it.id, p.id);
       if (s > 0 && (!best || s > best.s || (s === best.s && p.id < best.id))) best = { id: p.id, s };
     }
-    if (best) out.push({ itemId: it.id, personId: best.id, share: best.s, assignee: currentAssignee(g, it.id) });
+    if (best) out.push({ itemId: it.id, personId: best.id, share: best.s, assignee: currentAssignee(g, it.id), contributions: counts.get(it.id) ?? 0 });
   }
   return out;
 }
@@ -80,10 +88,10 @@ export function computeCoverage(g: Graph, now: number): Omit<CoverageResponse, '
     totals: {
       // The headline counts work (issues, PRs). A page with one author is normal, so pages are reported on their own.
       itemsScanned: g.items.filter((i) => i.kind !== 'goal' && i.kind !== 'page').length,
-      singlePointItems: tops.filter((t) => t.share >= SINGLE_POINT && kindOf.get(t.itemId) !== 'page').length,
+      singlePointItems: tops.filter((t) => t.share >= SINGLE_POINT && t.contributions >= MIN_EVIDENCE && kindOf.get(t.itemId) !== 'page').length,
       invisibleToAssignee: tops.filter((t) => t.share >= OWNER_MIN && t.assignee !== null && t.assignee !== t.personId).length,
       pagesScanned: g.items.filter((i) => i.kind === 'page').length,
-      singleAuthorPages: tops.filter((t) => t.share >= SINGLE_POINT && kindOf.get(t.itemId) === 'page').length,
+      singleAuthorPages: tops.filter((t) => t.share >= SINGLE_POINT && t.contributions >= MIN_EVIDENCE && kindOf.get(t.itemId) === 'page').length,
     },
   };
 }
@@ -103,7 +111,7 @@ export function findSinglePoints(g: Graph, now: number, opts: { area?: string; l
   const area = opts.area?.toLowerCase();
   const min = opts.minShare ?? SINGLE_POINT;
   return topPerItem(g, now)
-    .filter((t) => t.share >= min && (!area || (items.get(t.itemId)?.area ?? '').toLowerCase().includes(area)))
+    .filter((t) => t.share >= min && t.contributions >= MIN_EVIDENCE && (!area || (items.get(t.itemId)?.area ?? '').toLowerCase().includes(area)))
     .sort((a, b) => b.share - a.share || (a.itemId < b.itemId ? -1 : 1))
     .slice(0, opts.limit ?? 15)
     .map((t) => {
