@@ -143,60 +143,6 @@ export async function indexIssue(c: Client, issue: any, now: number, siteUrl?: s
   return buildIssueRecord(issue, comments, changelog, now, siteUrl);
 }
 
-// ---- Confluence ----
-
-export interface PageStub { id: string; title: string; ownerId?: string | null; authorId?: string | null; spaceName?: string; createdAt?: string; status?: string }
-
-export async function listPages(c: Client, cursor?: string, retry?: Retry): Promise<{ pages: PageStub[]; next?: string }> {
-  const path = cursor
-    ? route`/wiki/api/v2/pages?limit=50&sort=-modified-date&cursor=${cursor}`
-    : route`/wiki/api/v2/pages?limit=50&sort=-modified-date`;
-  const res = await withRetry(() => c.requestConfluence(path, { headers: { Accept: 'application/json' } }), retry);
-  if (!res.ok) throw new AdapterError(`Confluence pages ${res.status}`);
-  const j = await res.json();
-  return {
-    pages: (j.results ?? []).map((p: any) => ({
-      id: String(p.id),
-      title: p.title ?? String(p.id),
-      ownerId: p.ownerId ?? null,
-      authorId: p.authorId ?? null,
-      spaceName: String(p.spaceId ?? ''),
-      createdAt: p.createdAt,
-      status: p.status,
-    })),
-    // The API returns a relative next link; only its cursor token is needed.
-    ...(j._links?.next ? { next: new URL(String(j._links.next), 'https://x.invalid').searchParams.get('cursor') ?? undefined } : {}),
-  };
-}
-
-export async function spaceNames(c: Client, retry?: Retry): Promise<Map<string, string>> {
-  const res = await withRetry(() => c.requestConfluence(route`/wiki/api/v2/spaces?limit=250`, { headers: { Accept: 'application/json' } }), retry);
-  if (!res.ok) throw new AdapterError(`Confluence spaces ${res.status}`);
-  const j = await res.json();
-  return new Map((j.results ?? []).map((s: any) => [String(s.id), s.name ?? s.key ?? String(s.id)]));
-}
-
-export async function fetchPageVersions(c: Client, id: string, retry?: Retry): Promise<any[]> {
-  const res = await withRetry(() => c.requestConfluence(route`/wiki/api/v2/pages/${id}/versions?limit=50`, { headers: { Accept: 'application/json' } }), retry);
-  if (!res.ok) throw new AdapterError(`Confluence versions ${res.status} for page ${id}`);
-  return (await res.json()).results ?? [];
-}
-
-export function buildPageRecord(p: PageStub, versions: any[], now: number, siteUrl?: string): IndexedItem {
-  const itemId = `page:${p.id}`;
-  const edges: Edge[] = [];
-  if (p.ownerId) edges.push({ person: p.ownerId, item: itemId, kind: 'owns', at: ts(p.createdAt, now), weight: W.owns });
-  if (p.authorId) edges.push({ person: p.authorId, item: itemId, kind: 'authored', at: ts(p.createdAt, now), weight: W.authored });
-  for (const v of versions) {
-    if (v.authorId) edges.push({ person: v.authorId, item: itemId, kind: 'authored', at: ts(v.createdAt, now), weight: W.pageVersion });
-  }
-  return {
-    item: { id: itemId, kind: 'page', title: p.title, area: p.spaceName ? `Space ${p.spaceName}` : 'Confluence', open: p.status !== 'archived' },
-    edges,
-    meta: { ...(siteUrl ? { url: `${siteUrl}/wiki/pages/viewpage.action?pageId=${p.id}` } : {}), indexedAt: now },
-  };
-}
-
 /** Looks up display names for account ids the index does not know yet. */
 export async function lookupPeople(c: Client, ids: string[], retry?: Retry): Promise<Person[]> {
   const out: Person[] = [];
@@ -225,8 +171,8 @@ export async function filterVisible(api: ApiLike, itemIds: string[], retry?: Ret
   const visible = new Set<string>();
   const notes: string[] = [];
   const user = api.asUser();
+  // Pages (Teamwork Graph only) cannot be permission-checked without Confluence access, so they are never shown.
   const issues = itemIds.filter((i) => !i.startsWith('page:'));
-  const pages = itemIds.filter((i) => i.startsWith('page:')).map((i) => i.slice(5));
   // Batches run a few at a time; one after another took ~25 s on a 4,600-item index.
   const inBatches = async (ids: string[], run: (batch: string[]) => Promise<void>): Promise<number> => {
     const batches: string[][] = [];
@@ -243,13 +189,6 @@ export async function filterVisible(api: ApiLike, itemIds: string[], retry?: Ret
     for (const x of r.issues) visible.add(x.key);
   });
   if (issueFailed) notes.push(`Could not check Jira permissions for ${issueFailed} items; they were left out.`);
-  const pageFailed = await inBatches(pages, async (batch) => {
-    const q = new URLSearchParams({ id: batch.join(','), limit: '100' });
-    const res = await withRetry(() => user.requestConfluence(route`/wiki/api/v2/pages?${q}`, { headers: { Accept: 'application/json' } }), retry);
-    if (!res.ok) throw new Error(String(res.status));
-    for (const p of (await res.json()).results ?? []) visible.add(`page:${p.id}`);
-  });
-  if (pageFailed) notes.push(`Could not check Confluence permissions for ${pageFailed} pages; they were left out.`);
   return { visible, notes };
 }
 

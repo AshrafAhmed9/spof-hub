@@ -7,13 +7,12 @@ import { fmtTime } from './util';
 
 const LABELS: Record<SetupCheck['id'], string> = {
   'jira-scopes': 'Jira read access',
-  'confluence-scopes': 'Confluence read access',
   'teamwork-graph': 'Teamwork Graph',
   rovo: 'Rovo agent',
   mcp: 'Connecting other tools (MCP)',
   index: 'Scan data',
 };
-const ORDER: SetupCheck['id'][] = ['jira-scopes', 'confluence-scopes', 'teamwork-graph', 'rovo', 'mcp', 'index'];
+const ORDER: SetupCheck['id'][] = ['jira-scopes', 'teamwork-graph', 'rovo', 'mcp', 'index'];
 
 export function Setup({ onStatus }: { onStatus: (s: SetupStatus) => void }) {
   const [s, setS] = useState<SetupStatus | null>(null);

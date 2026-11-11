@@ -6,17 +6,14 @@ Depth Chart is an Atlassian Forge app. It runs on Atlassian's infrastructure and
 
 ## What it reads
 
-When someone on your site runs a scan, the app reads Jira and Confluence as the app itself. Reads from Teamwork Graph use the permissions of the person who is viewing:
+When someone on your site runs a scan, the app reads Jira as the app itself. Reads from Teamwork Graph use the permissions of the person who is viewing:
 
 - Jira work items: key, summary, status, priority, due date, component, assignee, links, comments, status changes, and who made them.
-- Confluence pages: title, space, and who wrote each version.
 - Atlassian Teamwork Graph, where that person has access: team membership, goals, and pull requests linked to work items.
 
 ## What it keeps
 
-The app stores a scan index in Forge storage for your site. It holds Atlassian account IDs and display names, counts of who contributed to each item, the plans you create, and an audit log of changes the app made. It stores work item summaries and page titles so results are readable. It does not store comment text, issue descriptions, or page bodies.
-
-Each product keeps its own copy. A Jira install and a Confluence install do not share an index.
+The app stores a scan index in Forge storage for your site. It holds Atlassian account IDs and display names, counts of who contributed to each item, the plans you create, and an audit log of changes the app made. It stores work item summaries so results are readable. It does not store comment text or issue descriptions.
 
 ## Where it goes
 
@@ -24,7 +21,7 @@ Nowhere. The app makes no outside network calls and has no connection to an AI s
 
 ## Who sees it
 
-Because the scan covers the whole site, the app checks each viewer's own permissions when showing results. Items a person cannot open in Jira or Confluence are left out of what they see.
+Because the scan covers the whole site, the app checks each viewer's own permissions when showing results. Items a person cannot open in Jira are left out of what they see.
 
 The app does not rank people, and it does not report on individuals' performance. It shows which work depends on one person, so it can be covered.
 

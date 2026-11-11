@@ -6,13 +6,6 @@ modules:
       resource: hub
       resolver:
         function: hub-resolver
-  confluence:globalPage:
-    - key: spof-hub-confluence
-      title: Depth Chart
-      route: depth-chart
-      resource: hub
-      resolver:
-        function: hub-resolver
   jira:issuePanel:
     - key: spof-issue-panel
       title: Who knows this
@@ -49,7 +42,7 @@ modules:
         list is not proof that nothing is at risk when a note says a source failed or the index is empty.
         If an action returns an error or no candidate, say so plainly. Never invent a person, an item or a reason.
 
-        State your limits when they matter. Knowledge is estimated from recent Jira and Confluence activity, with older
+        State your limits when they matter. Knowledge is estimated from recent Jira activity, with older
         activity counting less. It does not see chats, calls or code review outside Atlassian, and it cannot tell whether
         someone is actually available. A suggestion is a starting point for a manager to confirm.
       actions:
@@ -167,10 +160,6 @@ modules:
         - avi:jira:commented:issue
         - avi:jira:assigned:issue
         - avi:jira:updated:issue
-    - key: index-on-confluence-event
-      function: on-product-event-fn
-      events:
-        - avi:confluence:updated:page
 
   # Reports stored account ids to Atlassian and erases closed accounts (Forge user privacy guide).
   scheduledTrigger:
@@ -208,11 +197,6 @@ permissions:
     - read:jira-work
     - write:jira-work
     - read:jira-user
-    # Confluence REST (v2 endpoints use the granular scopes; UNVERIFIED which of these the v2 calls need)
-    - read:confluence-content.all
-    - read:confluence-content.summary
-    - read:page:confluence
-    - read:space:confluence
     # Teamwork Graph: one scope per object type the curated queries touch (names verified on
     # developer.atlassian.com/platform/teamwork-graph/scopes, page dated 2026-09-15)
     - read:graph:issue:jira

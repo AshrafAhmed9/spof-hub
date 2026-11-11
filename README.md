@@ -1,8 +1,8 @@
 # Depth Chart
 
-A Forge app for Jira and Confluence that finds work only one person understands, and helps you cover it before they are away.
+A Forge app for Jira that finds work only one person understands, and helps you cover it before they are away.
 
-Most handover tools move assignees after someone has already left. This one starts earlier. It reads who actually answered questions, commented, reviewed and wrote the pages in each area, and shows where one person holds most of it. It then suggests who could cover each item, lets you approve the changes, applies them, and re-scans to show what's left. Every change can be undone.
+Most handover tools move assignees after someone has already left. This one starts earlier. It reads who actually answered questions, commented and reviewed in each area, and shows where one person holds most of it. It then suggests who could cover each item, lets you approve the changes, applies them, and re-scans to show what's left. Every change can be undone.
 
 ## What's in here
 
@@ -15,7 +15,7 @@ Most handover tools move assignees after someone has already left. This one star
 
 ## How it works
 
-- **Scan.** Reads Jira issues and comments, Confluence page versions, and Teamwork Graph where the viewer has access. Everything stays in Forge storage. The app has no LLM and makes no outside network calls.
+- **Scan.** Reads Jira issues, comments and status changes, and Teamwork Graph where the viewer has access. Everything stays in Forge storage. The app has no LLM and makes no outside network calls.
 - **Score.** Each item gets the share of the work held by its top person. Each area gets a truck factor. Risk is passed along blocking links.
 - **Plan.** For a person and a date range, the app lists the items that need cover and suggests a successor for each, with the reason.
 - **Apply.** Reassigns, comments and watches go through idempotent steps with an audit record, so a retry never repeats a change.
@@ -27,11 +27,11 @@ On five Apache projects that weren't used to design the method, items held mostl
 
 A second check asked whether the suggested successor is the person who actually picked the work up after a contributor left. Over 518 items from the same projects, the suggestion was in the top three 42% of the time, against 2% for a random pick and 41% for "whoever commented most on that item". So the suggestions come from the item's real history and are far better than chance, but this data doesn't show them beating that simple rule. See `backtest/RESULTS_SUCCESSOR.md`.
 
-## Installing on Jira and Confluence
+## Installing
 
-The app has a page in both products. Forge keeps a separate store for each product's installation, so each one has its own scan. Run a scan in the product where you want to use it. The Rovo agent and the MCP tools read the index of the product they are called from, so a site with both installed shows two Depth Chart agents.
+The app runs in Jira. Open Depth Chart from the Apps menu and run a scan. On a large site, the scan box accepts project keys (for example `MOB, CX`) so you can start with a few projects. The Rovo agent and the MCP tools read the same index.
 
-On a large site, the scan box accepts project keys (for example `MOB, CX`) so you can start with a few projects.
+Confluence is not supported. A Forge app that requires both products can only be listed on the Marketplace as a paid app, and this one is free.
 
 ## Using the MCP tools
 

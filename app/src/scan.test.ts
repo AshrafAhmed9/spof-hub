@@ -48,7 +48,7 @@ describe('scan', () => {
     const queue: any[] = [];
     const store = memoryStore();
     const deps: ScanDeps = { api: fakeSite(keys), store, queue: { push: async (e) => void queue.push(...e) }, now: () => NOW, retry: { sleep: async () => {} } };
-    const started = await startScan(deps, { includePages: false });
+    const started = await startScan(deps);
     expect(started.state).toBe('running');
     await drain(deps, queue);
     const p = await getProgress(deps);
@@ -63,7 +63,7 @@ describe('scan', () => {
     const queue: any[] = [];
     const store = memoryStore();
     const deps: ScanDeps = { api: fakeSite(keys, 'ABC-2'), store, queue: { push: async (e) => void queue.push(...e) }, now: () => NOW, retry: { sleep: async () => {} } };
-    await startScan(deps, { includePages: false });
+    await startScan(deps);
     await drain(deps, queue);
     const p = await getProgress(deps);
     expect(p.message).toMatch(/1 items could not be indexed.*ABC-2/);
@@ -73,7 +73,7 @@ describe('scan', () => {
   it('ignores events from a replaced run', async () => {
     const store = memoryStore();
     const deps: ScanDeps = { api: fakeSite([]), store, queue: { push: async () => {} }, now: () => NOW };
-    await startScan(deps, { includePages: false });
+    await startScan(deps);
     await handleScanEvent(deps, { runId: 'old', kind: 'jira-chunk', n: 0, keys: ['ABC-1'] });
     expect((await store.list('chunk:')).length).toBe(0);
   });

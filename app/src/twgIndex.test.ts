@@ -83,7 +83,7 @@ describe('record builders', () => {
 describe('advanceTwg', () => {
   async function seeded() {
     const store = memoryStore();
-    await store.set('scan:run', { runId: 'r1', startedAt: Date.now(), projectKeys: [], includePages: false });
+    await store.set('scan:run', { runId: 'r1', startedAt: Date.now(), projectKeys: [] });
     await store.set('scan:list:r1:jira', { done: true, chunks: 0, items: 0 });
     await store.set('person:u1', { id: 'u1', name: 'Una' });
     await store.set('item:ABC-1', restIssue('ABC-1', 'u1'));

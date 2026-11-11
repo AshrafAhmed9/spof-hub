@@ -2,12 +2,12 @@
 
 ## Get help
 
-Open an issue at https://github.com/AshrafAhmed9/spof-hub/issues. Include your product (Jira or Confluence), what you clicked, and what you expected. Please don't paste private work item contents.
+Open an issue at https://github.com/AshrafAhmed9/spof-hub/issues. Include what you clicked, and what you expected. Please don't paste private work item contents.
 
 ## Common questions
 
 **The page says the index is empty.**
-Jira and Confluence each keep their own index. Open Depth Chart in the product you are using and run a scan there.
+Open Depth Chart in Jira and run a scan.
 
 **A scan on a big site is slow.**
 It runs about 130 items a minute and needs the page open. Enter project keys (for example `MOB, CX`) in the scan box to start with a few projects.

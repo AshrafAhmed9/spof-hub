@@ -2,13 +2,9 @@
 // the queue consumer (app context) lists keys, fans out chunk events and writes `item:` / `person:` records.
 // Progress is derived from per-chunk marker keys, so concurrent consumers never fight over one counter.
 import {
-  buildPageRecord,
-  fetchPageVersions,
   indexIssue,
-  listPages,
   lookupPeople,
   searchIssues,
-  spaceNames,
   JIRA_FIELDS,
 } from './adapters';
 import type { ApiLike, Retry } from './api';
@@ -31,7 +27,7 @@ const CHUNK = 20;
 const LIST_PAGE = 100;
 const HISTORY_DAYS = 365;
 
-interface RunMeta { runId: string; startedAt: number; projectKeys: string[]; includePages: boolean }
+interface RunMeta { runId: string; startedAt: number; projectKeys: string[] }
 interface ListState { done: boolean; chunks: number; items: number; error?: string }
 /** Progress of the Teamwork Graph read that follows the REST scan (see twgIndex.ts). */
 export interface TwgRunState {
@@ -46,23 +42,20 @@ interface ChunkMarker { count: number; failed: Array<{ id: string; reason: strin
 
 type ScanEvent =
   | { runId: string; kind: 'jira-list'; jql: string; token?: string }
-  | { runId: string; kind: 'jira-chunk'; n: number; keys: string[] }
-  | { runId: string; kind: 'pages-list'; cursor?: string; spaces?: Array<[string, string]>; n?: number }
-  | { runId: string; kind: 'pages-chunk'; n: number; pages: Array<Record<string, unknown>> };
+  | { runId: string; kind: 'jira-chunk'; n: number; keys: string[] };
 
 export function jqlFor(projectKeys: string[] | undefined): string {
   const proj = projectKeys?.length ? `project in (${projectKeys.map((k) => `"${k.replace(/[^A-Za-z0-9_]/g, '')}"`).join(',')}) AND ` : '';
   return `${proj}(statusCategory != Done OR updated >= -${HISTORY_DAYS}d) ORDER BY updated DESC`;
 }
 
-export async function startScan(deps: ScanDeps, req: { projectKeys?: string[]; includePages?: boolean } = {}): Promise<ScanProgress> {
+export async function startScan(deps: ScanDeps, req: { projectKeys?: string[] } = {}): Promise<ScanProgress> {
   const current = await getProgress(deps);
   if (current.state === 'running') return { ...current, message: 'A scan is already running.' };
   const runId = `run_${deps.now().toString(36)}`;
-  const meta: RunMeta = { runId, startedAt: deps.now(), projectKeys: req.projectKeys ?? [], includePages: req.includePages !== false };
+  const meta: RunMeta = { runId, startedAt: deps.now(), projectKeys: req.projectKeys ?? [] };
   await deps.store.set('scan:run', meta);
   const events: Array<{ body: ScanEvent }> = [{ body: { runId, kind: 'jira-list', jql: jqlFor(req.projectKeys) } }];
-  if (meta.includePages) events.push({ body: { runId, kind: 'pages-list' } });
   try {
     await deps.queue.push(events as Array<{ body: Record<string, unknown> }>);
   } catch (e) {
@@ -115,17 +108,15 @@ export async function getProgress(deps: Pick<ScanDeps, 'store'>): Promise<ScanPr
   const run = await deps.store.get<RunMeta>('scan:run');
   if (!run) return { state: 'idle', done: 0, total: 0 };
   const jira = await deps.store.get<ListState>(`scan:list:${run.runId}:jira`);
-  const pages = run.includePages ? await deps.store.get<ListState>(`scan:list:${run.runId}:pages`) : { done: true, chunks: 0, items: 0 };
   const markers = await deps.store.list<ChunkMarker>(`chunk:${run.runId}:`);
   const done = markers.reduce((s, m) => s + m.value.count, 0);
   const failed = markers.flatMap((m) => m.value.failed);
-  const total = (jira?.items ?? 0) + (pages?.items ?? 0);
-  const planned = (jira?.chunks ?? 0) + (pages?.chunks ?? 0);
+  const total = jira?.items ?? 0;
+  const planned = jira?.chunks ?? 0;
   const msgs: string[] = [];
   if (failed.length) msgs.push(`${failed.length} items could not be indexed (first: ${failed[0]!.id}: ${failed[0]!.reason})`);
-  if (pages?.error) msgs.push(`Confluence skipped: ${pages.error}`);
   if (jira?.error) return { state: 'error', done, total, message: `Jira listing failed: ${jira.error}` };
-  const finished = !!jira?.done && !!pages?.done && markers.length >= planned;
+  const finished = !!jira?.done && markers.length >= planned;
   // A run that never started (no listing written) or never finishes must not block a retry forever.
   const age = Date.now() - run.startedAt;
   // Stored work means the scan can still be resumed, however long the page was closed.
@@ -157,16 +148,12 @@ export async function handleScanEvent(deps: ScanDeps, ev: ScanEvent): Promise<vo
       return jiraList(deps, ev);
     case 'jira-chunk':
       return jiraChunk(deps, ev);
-    case 'pages-list':
-      return pagesList(deps, ev);
-    case 'pages-chunk':
-      return pagesChunk(deps, ev);
   }
 }
 
-const listKey = (runId: string, w: 'jira' | 'pages') => `scan:list:${runId}:${w}`;
+const listKey = (runId: string, w: 'jira') => `scan:list:${runId}:${w}`;
 
-async function bumpList(deps: ScanDeps, runId: string, w: 'jira' | 'pages', add: Partial<ListState>) {
+async function bumpList(deps: ScanDeps, runId: string, w: 'jira', add: Partial<ListState>) {
   // Only the single list chain of each kind writes here, so read-modify-write is safe.
   const cur = (await deps.store.get<ListState>(listKey(runId, w))) ?? { done: false, chunks: 0, items: 0 };
   await deps.store.set(listKey(runId, w), { ...cur, ...add, chunks: cur.chunks + (add.chunks ?? 0), items: cur.items + (add.items ?? 0) });
@@ -231,59 +218,4 @@ async function jiraChunk(deps: ScanDeps, ev: Extract<ScanEvent, { kind: 'jira-ch
   const r = await indexKeys(deps, ev.keys);
   const marker: ChunkMarker = { count: ev.keys.length, failed: r.failed };
   await deps.store.set(`chunk:${ev.runId}:jira:${ev.n}`, marker);
-}
-
-async function pagesList(deps: ScanDeps, ev: Extract<ScanEvent, { kind: 'pages-list' }>) {
-  try {
-    const c = deps.api.asApp();
-    const spaces = new Map<string, string>(ev.spaces ?? (ev.cursor ? [] : [...(await spaceNames(c, deps.retry))]));
-    const page = await listPages(c, ev.cursor, deps.retry);
-    const stubs = page.pages.map((p) => ({ ...p, spaceName: spaces.get(p.spaceName ?? '') ?? p.spaceName }));
-    const prior = (await deps.store.get<ListState>(listKey(ev.runId, 'pages')))?.chunks ?? 0;
-    const chunks: Array<{ body: ScanEvent }> = [];
-    for (let i = 0; i < stubs.length; i += CHUNK) chunks.push({ body: { runId: ev.runId, kind: 'pages-chunk', n: prior + chunks.length, pages: stubs.slice(i, i + CHUNK) } });
-    // Page listing is capped to 10 pages of 50 (500 pages); beyond that the scan says so.
-    const pagesSeen = ev.n ?? 0;
-    const more = page.next && pagesSeen < 9;
-    await bumpList(deps, ev.runId, 'pages', {
-      chunks: chunks.length,
-      items: stubs.length,
-      done: !more,
-      ...(page.next && !more ? { error: 'stopped at 500 pages' } : {}),
-    });
-    const next: Array<{ body: ScanEvent }> = more ? [{ body: { runId: ev.runId, kind: 'pages-list', cursor: page.next!, spaces: [...spaces], n: pagesSeen + 1 } }] : [];
-    const all = [...chunks, ...next];
-    if (all.length) await deps.queue.push(all as Array<{ body: Record<string, unknown> }>);
-  } catch (e) {
-    await bumpList(deps, ev.runId, 'pages', { done: true, error: String((e as Error).message) });
-  }
-}
-
-export async function indexPages(deps: ScanDeps, pages: any[]): Promise<Array<{ id: string; reason: string }>> {
-  const failed: Array<{ id: string; reason: string }> = [];
-  const c = deps.api.asApp();
-  const peopleIds = new Set<string>();
-  for (const p of pages) {
-    try {
-      const versions = await fetchPageVersions(c, p.id, deps.retry);
-      const rec = buildPageRecord(p, versions, deps.now(), deps.siteUrl);
-      for (const e of rec.edges) peopleIds.add(e.person);
-      await deps.store.set(`item:${rec.item.id}`, rec);
-    } catch (e) {
-      failed.push({ id: `page:${p.id}`, reason: String((e as Error).message) });
-    }
-  }
-  const unknown: string[] = [];
-  for (const id of peopleIds) if (!(await deps.store.get(`person:${id}`))) unknown.push(id);
-  try {
-    if (unknown.length) await savePeople(deps, await lookupPeople(deps.api.asApp(), unknown, deps.retry));
-  } catch (e) {
-    failed.push({ id: 'people', reason: `names for ${unknown.length} people not resolved: ${(e as Error).message}` });
-  }
-  return failed;
-}
-
-async function pagesChunk(deps: ScanDeps, ev: Extract<ScanEvent, { kind: 'pages-chunk' }>) {
-  const failed = await indexPages(deps, ev.pages);
-  await deps.store.set(`chunk:${ev.runId}:pages:${ev.n}`, { count: ev.pages.length, failed } satisfies ChunkMarker);
 }

@@ -59,7 +59,7 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   const recs = await deps.store.list<IndexedItem>('item:');
   const people = (await deps.store.list<Person>('person:')).map((p) => p.value);
   if (recs.length === 0) {
-    return { graph: { people: [], items: [], edges: [] }, now: deps.now(), partial: true, notes: ['The index is empty for this product. Jira and Confluence each keep their own index, so open Depth Chart in this product and run a scan there. An empty result here is not evidence that nothing is at risk.'], mode };
+    return { graph: { people: [], items: [], edges: [] }, now: deps.now(), partial: true, notes: ['The index is empty. Open Depth Chart in Jira and run a scan. An empty result here is not evidence that nothing is at risk.'], mode };
   }
   const restRecs = recs.map((r) => r.value);
   const twg = await mergeTwg(deps, restRecs);
@@ -258,7 +258,7 @@ export async function setupStatus(deps: Deps, mode: Mode): Promise<SetupStatus> 
     }
     return {
       mode,
-      checks: (['teamwork-graph', 'rovo', 'mcp', 'jira-scopes', 'confluence-scopes', 'index'] as const).map((id) => ({ id, ok, detail: id === 'index' ? detail : 'Not used in sample mode.' })),
+      checks: (['teamwork-graph', 'rovo', 'mcp', 'jira-scopes', 'index'] as const).map((id) => ({ id, ok, detail: id === 'index' ? detail : 'Not used in sample mode.' })),
     };
   }
   // Teamwork Graph
@@ -279,12 +279,6 @@ export async function setupStatus(deps: Deps, mode: Mode): Promise<SetupStatus> 
     checks.push({ id: 'jira-scopes', ok: missing.length === 0, detail: missing.length ? `You lack ${missing.join(', ')} in Jira, so Apply will fail for some items. Reading works.` : 'Jira read and write checks passed for you.' });
   } catch (e) {
     checks.push({ id: 'jira-scopes', ok: false, detail: `Could not call Jira as you (${(e as Error).message}). Re-install the app and accept the Jira scopes.` });
-  }
-  try {
-    const res = await deps.api.asUser().requestConfluence(route`/wiki/api/v2/pages?limit=1`, { headers: { Accept: 'application/json' } });
-    checks.push({ id: 'confluence-scopes', ok: res.ok, detail: res.ok ? 'Confluence read works.' : `Confluence returned HTTP ${res.status}. Page ownership will be missing until the Confluence scopes are accepted.` });
-  } catch (e) {
-    checks.push({ id: 'confluence-scopes', ok: false, detail: `Could not call Confluence (${(e as Error).message}).` });
   }
   const n = (await deps.store.list('item:')).length;
   checks.push({ id: 'index', ok: n > 0, detail: n > 0 ? `${n} items indexed.` : 'No data indexed yet. Run a scan.' });

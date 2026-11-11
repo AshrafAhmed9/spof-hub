@@ -5,7 +5,7 @@ import type { HandoverPlan } from '../../engine/src/plan';
 export type Mode = 'live' | 'sample';
 
 export interface SetupCheck {
-  id: 'teamwork-graph' | 'rovo' | 'mcp' | 'jira-scopes' | 'confluence-scopes' | 'index';
+  id: 'teamwork-graph' | 'rovo' | 'mcp' | 'jira-scopes' | 'index';
   ok: boolean;
   /** 'unknown' = the app cannot probe this from code. It is neither passing nor failing; ok is false. */
   status?: 'unknown';

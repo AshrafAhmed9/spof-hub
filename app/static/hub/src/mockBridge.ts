@@ -111,7 +111,6 @@ export async function mockInvoke(name: string, payload?: unknown): Promise<unkno
         mode,
         checks: [
           { id: 'jira-scopes', ok: true, detail: 'Jira read access is working.' },
-          { id: 'confluence-scopes', ok: true, detail: 'Confluence read access is working.' },
           { id: 'teamwork-graph', ok: scenario !== 'partial', detail: scenario !== 'partial' ? 'Teamwork Graph responded.' : 'Teamwork Graph is not available on this site. Ask an admin to turn on the Teamwork Graph preview, then check again.' },
           { id: 'rovo', ok: true, detail: 'Rovo agent is available.' },
           { id: 'mcp', ok: false, detail: 'Connecting other tools (MCP) is off. An admin can turn it on in Atlassian administration.' },
