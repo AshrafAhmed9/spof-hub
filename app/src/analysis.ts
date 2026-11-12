@@ -68,6 +68,11 @@ export function computeCoverage(g: Graph, now: number): Omit<CoverageResponse, '
     }
     const ranked = [...sums.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
     const [topId, topSum] = ranked[0] ?? ['', 0];
+    let single = 0;
+    for (const it of items) {
+      const top = topById.get(it.id);
+      if (top && top.share >= SINGLE_POINT && top.contributions >= MIN_EVIDENCE) single++;
+    }
     for (const it of items) {
       const top = topById.get(it.id);
       if (top && top.personId === topId && top.share >= OWNER_MIN && top.assignee !== topId) unassigned++;
@@ -79,6 +84,7 @@ export function computeCoverage(g: Graph, now: number): Omit<CoverageResponse, '
       // Share is over items with any recorded activity, the same set the truck factor uses.
       topPerson: { id: topId, name: names.get(topId) ?? 'An unnamed account', share: t.considered ? Math.min(1, topSum / t.considered) : 0 },
       unassignedToTop: unassigned,
+      singlePointItems: single,
     });
   }
   areas.sort((a, b) => a.truckFactor - b.truckFactor || b.topPerson.share - a.topPerson.share || (a.area < b.area ? -1 : 1));

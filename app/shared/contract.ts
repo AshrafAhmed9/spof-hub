@@ -19,6 +19,7 @@ export interface AreaCoverage {
   truckFactor: number;          // 1 = a single person holds it
   topPerson: { id: string; name: string; share: number };
   unassignedToTop: number;      // items mostly handled by topPerson but not assigned to them
+  singlePointItems: number;     // items here where one person holds >= 80% with enough evidence
 }
 export interface CoverageResponse {
   mode: Mode;

@@ -30,10 +30,10 @@ function coverage(): CoverageResponse {
     return { ...base, partial: false, notes: [], areas: [], totals: { itemsScanned: 412, singlePointItems: 0, invisibleToAssignee: 0 } };
   }
   const areas = [
-    { area: 'Payments service', items: 38, truckFactor: 1, topPerson: { id: 'u-priya', name: 'Priya Nair', share: 0.82 }, unassignedToTop: 4 },
-    { area: 'Onboarding docs', items: 14, truckFactor: 1, topPerson: { id: 'u-sam', name: 'Sam Whitlock', share: 0.91 }, unassignedToTop: 0 },
-    { area: 'Q1 Reliability', items: 22, truckFactor: 2, topPerson: { id: 'u-mei', name: 'Mei Tanaka', share: 0.55 }, unassignedToTop: 1 },
-    { area: 'Mobile checkout', items: 29, truckFactor: 3, topPerson: { id: 'u-dana', name: 'Dana Okafor', share: 0.4 }, unassignedToTop: 0 },
+    { area: 'Payments service', items: 38, truckFactor: 1, topPerson: { id: 'u-priya', name: 'Priya Nair', share: 0.82 }, unassignedToTop: 4, singlePointItems: 6 },
+    { area: 'Onboarding docs', items: 14, truckFactor: 1, topPerson: { id: 'u-sam', name: 'Sam Whitlock', share: 0.91 }, unassignedToTop: 0, singlePointItems: 3 },
+    { area: 'Q1 Reliability', items: 22, truckFactor: 2, topPerson: { id: 'u-mei', name: 'Mei Tanaka', share: 0.55 }, unassignedToTop: 1, singlePointItems: 1 },
+    { area: 'Mobile checkout', items: 29, truckFactor: 3, topPerson: { id: 'u-dana', name: 'Dana Okafor', share: 0.4 }, unassignedToTop: 0, singlePointItems: 0 },
   ];
   const partial = scenario === 'partial';
   return {

@@ -73,8 +73,8 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
     if (data.s === 'error') return <ErrorPanel error={data.e} onRetry={load} what="coverage" />;
     const c = data.v;
     const noScan = c.totals.itemsScanned === 0;
-    const needs = (a: AreaCoverage) => a.truckFactor <= 1 || a.unassignedToTop > 0;
-    const sorted = [...c.areas].sort((a, b) => a.truckFactor - b.truckFactor || b.unassignedToTop - a.unassignedToTop || b.items - a.items);
+    const needs = (a: AreaCoverage) => a.truckFactor <= 1 || a.singlePointItems > 0;
+    const sorted = [...c.areas].sort((a, b) => a.truckFactor - b.truckFactor || b.singlePointItems - a.singlePointItems || b.items - a.items);
     const rows = show === 'attention' ? sorted.filter(needs) : sorted;
 
     return (
@@ -129,8 +129,10 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
                             : <Lozenge appearance="success">{a.truckFactor} people</Lozenge>}
                         </div>
                         <p>
-                          {a.topPerson.name} holds {shareWords(a.topPerson.share)} of the knowledge across {plural(a.items, 'item')}.
-                          {a.unassignedToTop > 0 && <> {plural(a.unassignedToTop, 'item')} {a.unassignedToTop === 1 ? "isn't" : "aren't"} assigned to them.</>}
+                          {a.singlePointItems > 0
+                            ? <>{plural(a.singlePointItems, 'item')} of {a.items.toLocaleString()} {a.singlePointItems === 1 ? 'depends' : 'depend'} on one person.</>
+                            : <>{a.topPerson.name} holds {shareWords(a.topPerson.share)} of the knowledge across {plural(a.items, 'item')}.</>}
+                          {a.unassignedToTop > 0 && <> {plural(a.unassignedToTop, 'item')} {a.unassignedToTop === 1 ? "isn't" : "aren't"} assigned to {a.topPerson.name}.</>}
                         </p>
                         <ShareBar share={a.topPerson.share} who={a.topPerson.name} label={`in ${a.area}`} />
                       </div>
