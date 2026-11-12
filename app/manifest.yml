@@ -203,7 +203,6 @@ permissions:
     - read:graph:issue-status:jira
     - read:graph:user:atlassian
     - read:graph:team:atlassian
-    - read:graph:page:confluence
     - read:graph:goal:atlassian
     - read:graph:project:atlassian
     - read:graph:pull-request:external

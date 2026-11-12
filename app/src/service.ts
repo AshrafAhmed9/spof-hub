@@ -280,8 +280,8 @@ export async function setupStatus(deps: Deps, mode: Mode): Promise<SetupStatus> 
   } catch (e) {
     checks.push({ id: 'jira-scopes', ok: false, detail: `Could not call Jira as you (${(e as Error).message}). Re-install the app and accept the Jira scopes.` });
   }
-  const n = (await deps.store.list('item:')).length;
-  checks.push({ id: 'index', ok: n > 0, detail: n > 0 ? `${n} items indexed.` : 'No data indexed yet. Run a scan.' });
+  const n = (await deps.store.list('item:', 1)).length; // one record is enough; a full listing reads the whole index
+  checks.push({ id: 'index', ok: n > 0, detail: n > 0 ? 'The index has data.' : 'No data indexed yet. Run a scan.' });
   return { mode, checks };
 }
 
