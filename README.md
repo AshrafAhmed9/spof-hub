@@ -37,6 +37,8 @@ Confluence is not supported. A Forge app that requires both products can only be
 
 An admin turns on "Expose tools to MCP-compatible apps" for the app under Site settings, Connected apps. A client then connects to `https://mcp.atlassian.com/forge/<app id>` and signs in. It gets four read-only tools: `find-single-points`, `at-risk-for-person`, `suggest-successor` and `handover-brief`.
 
+An agent skill file for third-party agents is in [docs/mcp-skill.md](docs/mcp-skill.md).
+
 ## Known limits
 
 - Teamwork Graph is in preview and its reads run as the viewing user, so they only advance while the page is open.
