@@ -7,7 +7,7 @@ import { api, type PlanEntry } from './api';
 import type { AreaCoverage, CoverageResponse, ScanProgress } from '../../../shared/contract';
 import { EmptyState, ErrorPanel, ExternalLink, Loading, PartialNotice, PrimaryButton, ShareBar, useFocusHeading } from './common';
 import { itemUrl, useHost } from './host';
-import { DAY, fmtDate, fmtDateLong, fmtTime, plural, shareWords, todayDay } from './util';
+import { DAY, fmtDate, fmtDateLong, fmtTime, plural, shareWords, shortName, todayDay } from './util';
 const WhyDrawer = lazy(() => import('./WhyDrawer').then((m) => ({ default: m.WhyDrawer })));
 
 export type Nav =
@@ -276,7 +276,7 @@ function Area({ area, setNav, onPlan, onSetup }: { area: AreaCoverage; setNav: (
               : `${plural(area.items, 'item')} scanned here.`}
           </p>
         </div>
-        <Button onClick={() => onPlan(area.topPerson.id)}>Plan time off for {area.topPerson.name.split(' ')[0]}</Button>
+        <Button onClick={() => onPlan(area.topPerson.id)}>Plan time off for {shortName(area.topPerson.name)}</Button>
       </div>
       {data.s === 'loading' && <Loading label="Loading items" />}
       {data.s === 'error' && <ErrorPanel error={data.e} onRetry={load} what="the items in this area" />}
@@ -335,7 +335,7 @@ function Item({ nav, setNav, onPlan }: { nav: Extract<Nav, { view: 'item' }>; se
   const host = useHost();
   const url = host ? itemUrl(e.itemId, host.siteUrl) : null;
   const cands = [e.successor, ...e.alternates].filter((x): x is NonNullable<typeof x> => !!x);
-  const first = area.topPerson.name.split(' ')[0];
+  const first = shortName(area.topPerson.name);
   return (
     <div className="stack">
       <Crumbs items={[['Coverage', () => setNav({ view: 'hub' })], [area.area, () => setNav({ view: 'area', area })], [e.kind === 'page' ? e.title : e.itemId]]} />

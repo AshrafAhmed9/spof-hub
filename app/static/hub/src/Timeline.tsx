@@ -3,7 +3,7 @@ import Select from '@atlaskit/select';
 import { api, type Person } from './api';
 import type { Mode, TimelineResponse } from '../../../shared/contract';
 import { EmptyState, ErrorPanel, Loading, PartialNotice, PrimaryButton, useFocusHeading } from './common';
-import { DAY, fmtDate, fromInputDate, plural, todayDay, toInputDate } from './util';
+import { DAY, fmtDate, fromInputDate, plural, shortName, todayDay, toInputDate } from './util';
 
 type Away = { personId: string; name: string; from: number; to: number };
 
@@ -89,7 +89,7 @@ export function Timeline({ mode, onSetup }: { mode: Mode; onSetup: () => void })
       )}
       {res && !busy && (
         <>
-          <PartialNotice notes={res.notes} onSetup={onSetup} />
+          {res.partial && <PartialNotice notes={res.notes} onSetup={onSetup} />}
           <p aria-live="polite">
             {total === 0
               ? 'In the next 8 weeks nobody present is left without someone who knows an item. Nothing here is uncovered.'
@@ -105,7 +105,7 @@ export function Timeline({ mode, onSetup }: { mode: Mode; onSetup: () => void })
                     {res.steps.map((s) => (
                       <th scope="col" key={s.start}>
                         {fmtDate(s.start)}
-                        {s.absent.length > 0 && <span className="subtle block">{s.absent.map((p) => p.name.split(' ')[0]).join(', ')} away</span>}
+                        {s.absent.length > 0 && <span className="subtle block">{s.absent.map((p) => shortName(p.name)).join(', ')} away</span>}
                       </th>
                     ))}
                   </tr>

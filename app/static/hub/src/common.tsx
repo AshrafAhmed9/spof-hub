@@ -4,6 +4,7 @@ import SectionMessage, { SectionMessageAction } from '@atlaskit/section-message'
 import Spinner from '@atlaskit/spinner';
 import { ApiError } from './api';
 import { openExternal } from './host';
+import { shortName } from './util';
 
 /** Moves focus to the page heading when the view changes, so keyboard and screen-reader users land on new content. */
 export function useFocusHeading(dep: unknown) {
@@ -116,7 +117,7 @@ export function ShareBar({ share, who, label }: { share: number; who: string; la
       <div className="track" role="img" aria-label={`${who} holds ${pctText} of the knowledge${label ? ` ${label}` : ''}`}>
         <div className={`fill ${level}`} style={{ width: `${Math.max(2, Math.min(100, Math.round(share * 100)))}%` }} />
       </div>
-      <span className="small num" aria-hidden="true">{pctText} held by {who.split(' ')[0]}</span>
+      <span className="small num" aria-hidden="true">{pctText} held by {shortName(who)}</span>
     </div>
   );
 }
