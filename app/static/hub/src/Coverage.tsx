@@ -82,10 +82,12 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
         {c.partial && c.notes.some((n) => !/index is empty/i.test(n)) && <PartialNotice notes={c.notes.filter((n) => !/index is empty/i.test(n))} onSetup={onSetup} />}
         {noScan && c.areas.length === 0 ? (
           <EmptyState
-            title="Nothing scanned yet"
-            body={onSample
-              ? 'Scan this site to find work that depends on one person. Or look around first with an example company: nothing in your site changes.'
-              : 'Scan this site to find work that depends on one person.'}
+            title={scan?.state === 'done' ? 'The scan found no work items' : 'Nothing scanned yet'}
+            body={scan?.state === 'done'
+              ? 'This site has no work items we can read yet. Add some work in Jira and scan again' + (onSample ? ', or look around with the example company.' : '.')
+              : onSample
+                ? 'Scan this site to find work that depends on one person. Or look around first with an example company: nothing in your site changes.'
+                : 'Scan this site to find work that depends on one person.'}
           >
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-end' }}>
               
