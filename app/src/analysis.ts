@@ -3,6 +3,7 @@ import {
   areaTruckFactor,
   concentrationOf,
   contributionTable,
+  eligibleEdges,
   explainConcentration,
   isBot,
   type Graph,
@@ -34,7 +35,8 @@ export function topPerItem(g: Graph, now: number, items?: Item[]): ItemTop[] {
   const humans = g.people.filter((p) => !p.isBot && !isBot(p.name));
   const humanIds = new Set(humans.map((p) => p.id));
   const counts = new Map<string, number>();
-  for (const e of g.edges) if (humanIds.has(e.person)) counts.set(e.item, (counts.get(e.item) ?? 0) + 1);
+  // Same edges the share is computed from, so the evidence rule and the share agree.
+  for (const e of eligibleEdges(g, now)) if (humanIds.has(e.person)) counts.set(e.item, (counts.get(e.item) ?? 0) + 1);
   for (const it of items ?? g.items) {
     if (it.kind === 'goal' || !it.open) continue;
     let best: { id: string; s: number } | null = null;

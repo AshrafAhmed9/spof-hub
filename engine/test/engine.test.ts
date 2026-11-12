@@ -233,6 +233,21 @@ describe('explain', () => {
     expect(explainConcentration(fixtureOrg, 'B1', 'priya', NOW).reasons[0]).toBe('Priya Nair has not contributed here');
   });
 
+  it('mentions the holder\'s other kinds of activity', () => {
+    const g = {
+      people: [{ id: 'p', name: 'Pat' }],
+      items: [{ id: 'X', kind: 'workItem', title: 'X', open: true }],
+      edges: [
+        { person: 'p', item: 'X', kind: 'commented', at: NOW, weight: 1 },
+        { person: 'p', item: 'X', kind: 'commented', at: NOW, weight: 1 },
+        { person: 'p', item: 'X', kind: 'reviewed', at: NOW, weight: 1 },
+        { person: 'p', item: 'X', kind: 'authored', at: NOW, weight: 1 },
+      ],
+    } as any;
+    const x = explainConcentration(g, 'X', 'p', NOW);
+    expect(x.reasons).toContain('Also authored 1 contribution, reviewed 1');
+  });
+
   it('explains risk with due date and inheritance', () => {
     const r = propagateRisk(fixtureOrg, 'priya', NOW, NOW).find((x) => x.itemId === 'A9')!;
     const x = explainRisk(fixtureOrg, r, 'priya', NOW);

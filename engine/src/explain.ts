@@ -5,7 +5,7 @@ import {
   type DecayOptions,
 } from './concentration';
 import { DAY_MS, type EdgeKind, type Graph } from './model';
-import { KIND_ORDER, PHRASES, pct } from './phrases';
+import { counted, KIND_ORDER, PHRASES, pct } from './phrases';
 import type { RiskScore } from './propagation';
 
 export interface ContributorBreakdown {
@@ -107,6 +107,10 @@ export function explainConcentration(
     if (share >= 0.5) reasons.push(`${name} holds ${pct(share)} of the activity here`);
     else reasons.push(`${name} is one of ${contributors.length} contributors here (${pct(share)})`);
     reasons.push(`${name} ${ph.did} ${mineN} of ${allN} ${ph.noun}`);
+  }
+  const others = KIND_ORDER.filter((k) => k !== kind && (me.counts[k] ?? 0) > 0);
+  if (others.length > 0) {
+    reasons.push('Also ' + others.map((k, i) => `${PHRASES[k].did} ${i === 0 ? counted(me.counts[k]!, PHRASES[k].noun) : me.counts[k]}`).join(', '));
   }
   const idle = Math.round((cutoff - me.lastActivityAt) / DAY_MS);
   if (Number.isFinite(hl) && idle > hl) reasons.push(`Last activity was ${idle} days before the cutoff, so it is discounted`);

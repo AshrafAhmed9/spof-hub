@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Select from '@atlaskit/select';
 import { api, type Person } from './api';
 import type { Mode, TimelineResponse } from '../../../shared/contract';
+import WarningIcon from '@atlaskit/icon/core/status-warning';
 import { EmptyState, ErrorPanel, Loading, PartialNotice, PrimaryButton, useFocusHeading } from './common';
 import { DAY, fmtDate, fromInputDate, plural, shortName, todayDay, toInputDate } from './util';
 
@@ -120,7 +121,7 @@ export function Timeline({ mode, onSetup }: { mode: Mode; onSetup: () => void })
                           <td key={s.start} className={n > 0 ? 'hot' : ''}>
                             {n > 0 ? (
                               <button type="button" className="linklike" aria-expanded={open?.step === i && open.area === area} onClick={() => setOpen(open?.step === i && open.area === area ? null : { step: i, area })}>
-                                {n}<span className="sr-only"> {n === 1 ? 'item' : 'items'} in {area}, week of {fmtDate(s.start)}</span>
+                                <WarningIcon label="" />{n}<span className="sr-only"> {n === 1 ? 'item' : 'items'} in {area}, week of {fmtDate(s.start)}</span>
                               </button>
                             ) : <span aria-hidden="true">·</span>}
                           </td>

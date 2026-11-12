@@ -70,6 +70,18 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
 
   const scanning = scan?.state === 'running';
 
+  // Announce only start, finish and failure, not each progress tick.
+  const [announce, setAnnounce] = useState('');
+  const prevState = useRef<ScanProgress['state'] | undefined>();
+  useEffect(() => {
+    const s = scan?.state;
+    if (s === 'running' && prevState.current !== 'running') setAnnounce('Scan started');
+    else if (s === 'done' && prevState.current === 'running') setAnnounce('Scan finished');
+    else if (s === 'error' && prevState.current !== 'error') setAnnounce('Scan failed');
+    prevState.current = s;
+  }, [scan?.state]);
+  useEffect(() => { if (scanErr != null) setAnnounce('Scan failed'); }, [scanErr]);
+
   const body = (() => {
     if (data.s === 'loading') return <Loading label="Loading coverage" />;
     if (data.s === 'error') return <ErrorPanel error={data.e} onRetry={load} what="coverage" />;
@@ -170,6 +182,7 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
           <Button onClick={startScan} isDisabled={scanning}>{scanning ? 'Scanning' : 'Scan again'}</Button>
         </div>}
       </div>
+      <p role="status" className="sr-only">{announce}</p>
       {scanning && scan && <ScanBar p={scan} />}
       {scan?.state === 'error' && <ErrorPanel error={new Error(scan.message ?? 'The scan stopped.')} onRetry={startScan} what="the scan" />}
       {scanErr != null && <ErrorPanel error={scanErr} onRetry={startScan} what="the scan" />}
@@ -238,7 +251,7 @@ function GraphNote({ c }: { c: CoverageResponse }) {
 function ScanBar({ p }: { p: ScanProgress }) {
   const ratio = p.total > 0 ? p.done / p.total : 0;
   return (
-    <div className="card card-pad stack-sm" role="status" aria-live="polite">
+    <div className="card card-pad stack-sm">
       <p>
         <strong>{p.message ?? 'Scanning'}</strong>: {p.done.toLocaleString()} of {p.total.toLocaleString()} items.
         {' '}<span className="subtle">{p.needsPage ? 'Keep this page open until it finishes.' : 'You can leave this page; it keeps going.'}</span>

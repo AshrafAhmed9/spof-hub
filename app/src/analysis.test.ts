@@ -19,6 +19,13 @@ describe('single point evidence', () => {
     expect(findSinglePoints(graph(MIN_EVIDENCE), NOW)).toHaveLength(1);
     expect(computeCoverage(graph(MIN_EVIDENCE), NOW).totals.singlePointItems).toBe(1);
   });
+  it('does not count future-dated or zero-weight edges toward the evidence rule', () => {
+    const g = graph(MIN_EVIDENCE - 1);
+    g.edges.push({ person: 'u1', item: 'ABC-1', kind: 'commented', at: NOW + 86_400_000, weight: 1 } as any);
+    g.edges.push({ person: 'u1', item: 'ABC-1', kind: 'commented', at: NOW - 5000, weight: 0 } as any);
+    expect(findSinglePoints(g, NOW)).toHaveLength(0);
+    expect(computeCoverage(g, NOW).totals.singlePointItems).toBe(0);
+  });
   it('still shows single points in the sample company', () => {
     const s = loadSample(NOW);
     expect(computeCoverage(s.graph, s.asOf).totals.singlePointItems).toBeGreaterThan(0);

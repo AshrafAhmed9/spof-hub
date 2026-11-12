@@ -6,12 +6,22 @@ import { ApiError } from './api';
 import { openExternal } from './host';
 import { shortName } from './util';
 
-/** Moves focus to the page heading when the view changes, so keyboard and screen-reader users land on new content. */
+let arrowNav = false;
+if (typeof document !== 'undefined') {
+  document.addEventListener('keydown', (e) => { arrowNav = ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key); }, true);
+  document.addEventListener('pointerdown', () => { arrowNav = false; }, true);
+}
+
+/**
+ * Moves focus to the page heading when the view changes, so keyboard and screen-reader users land on new content.
+ * Skipped while arrowing along the tab list, so the user keeps their place there.
+ */
 export function useFocusHeading(dep: unknown) {
   const ref = useRef<HTMLHeadingElement>(null);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
+    if (arrowNav && document.activeElement?.getAttribute('role') === 'tab') return;
     ref.current?.focus();
   }, [dep]);
   return ref;

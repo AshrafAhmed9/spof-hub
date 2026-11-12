@@ -33,28 +33,35 @@ export function App() {
 
   if (host?.issueKey) return <div className="page panel"><IssuePanel issueKey={host.issueKey} /></div>;
 
+  const view = (i: number) => {
+    switch (i) {
+      case 0: return <Coverage key={`c${epoch}`} nav={nav} setNav={setNav} onPlan={goPlan} onSetup={() => setTab(4)} onSample={mode === 'live' ? () => switchMode('sample') : undefined} />;
+      case 1: return (
+        <Plans key={`p${epoch}`} initialLeaver={leaver} mode={mode} onSetup={() => setTab(4)}
+          onRun={(r) => setRuns((x) => [r, ...x])}
+          onRunUpdate={(k, p) => setRuns((x) => x.map((r) => (r.planKey === k ? { ...r, ...p } : r)))} />
+      );
+      case 2: return <Timeline key={`t${epoch}`} mode={mode} onSetup={() => setTab(4)} />;
+      case 3: return <Activity runs={runs} out={undoOut} setOut={setUndoOut} onPlan={() => setTab(1)} onUndone={(k) => setRuns((x) => x.map((r) => (r.planKey === k ? { ...r, undone: true } : r)))} />;
+      default: return <Setup key={`s${epoch}`} />;
+    }
+  };
+
   return (
     <div className="page">
       {host?.product === 'confluence' && <AppHeader />}
       {mode === 'sample' && <SampleBanner onSetup={() => setTab(4)} onLive={() => switchMode('live')} />}
-      <div className="tabs-wrap">
-        <Tabs id="main" selected={tab} onChange={(i) => { setTab(i); if (i === 0) setNav({ view: 'hub' }); }}>
-          <TabList>{TABS.map((t) => <Tab key={t}>{t}</Tab>)}</TabList>
-          {TABS.map((t) => <TabPanel key={t}><span className="sr-only">{t}</span></TabPanel>)}
-        </Tabs>
-      </div>
       <main>
-        <Suspense fallback={<Loading label="Loading" rows={3} />}>
-        {tab === 0 && <Coverage key={`c${epoch}`} nav={nav} setNav={setNav} onPlan={goPlan} onSetup={() => setTab(4)} onSample={mode === 'live' ? () => switchMode('sample') : undefined} />}
-        {tab === 1 && (
-          <Plans key={`p${epoch}`} initialLeaver={leaver} mode={mode} onSetup={() => setTab(4)}
-            onRun={(r) => setRuns((x) => [r, ...x])}
-            onRunUpdate={(k, p) => setRuns((x) => x.map((r) => (r.planKey === k ? { ...r, ...p } : r)))} />
-        )}
-        {tab === 2 && <Timeline key={`t${epoch}`} mode={mode} onSetup={() => setTab(4)} />}
-        {tab === 3 && <Activity runs={runs} out={undoOut} setOut={setUndoOut} onPlan={() => setTab(1)} onUndone={(k) => setRuns((x) => x.map((r) => (r.planKey === k ? { ...r, undone: true } : r)))} />}
-        {tab === 4 && <Setup key={`s${epoch}`} />}
-        </Suspense>
+        <Tabs id="main" selected={tab} onChange={(i) => { setTab(i); if (i === 0) setNav({ view: 'hub' }); }}>
+          <div className="tabs-wrap"><TabList>{TABS.map((t) => <Tab key={t}>{t}</Tab>)}</TabList></div>
+          {TABS.map((t, i) => (
+            <TabPanel key={t}>
+              <Suspense fallback={<Loading label="Loading" rows={3} />}>
+                {tab === i && view(i)}
+              </Suspense>
+            </TabPanel>
+          ))}
+        </Tabs>
       </main>
     </div>
   );

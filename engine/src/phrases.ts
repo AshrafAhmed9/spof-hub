@@ -24,6 +24,12 @@ export const KIND_ORDER: EdgeKind[] = [
   'linked',
 ];
 
+/** "comments" -> "comment" when n is 1. */
+export function counted(n: number, noun: string): string {
+  if (n !== 1) return `${n} ${noun}`;
+  return `1 ${noun.endsWith('ies') ? noun.slice(0, -3) + 'y' : noun.replace(/s$/, '')}`;
+}
+
 export function pct(x: number): string {
   return `${Math.round(x * 100)}%`;
 }

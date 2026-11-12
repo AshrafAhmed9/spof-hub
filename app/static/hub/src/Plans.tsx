@@ -295,7 +295,8 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
               <p>This is example data, so nothing was written to your site. On your own site, the {plural(approvedEntries.length, 'change')} you approved would be applied here.</p>
             </SectionMessage>
           ) : (
-            <section className="card card-pad stack-sm" aria-labelledby="res" aria-live="polite">
+            <section className="card card-pad stack-sm" aria-labelledby="res">
+              <p role="status" className="subtle">{result.failed.length === 0 ? `All ${plural(result.done.length, 'change')} applied.` : `${result.done.length} applied, ${result.failed.length} skipped.`}</p>
               <h2 id="res">{result.failed.length === 0 ? 'All changes applied' : `${result.done.length} applied, ${result.failed.length} didn't go through`}</h2>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} className="stack-sm">
                 {result.done.map((d) => <li key={d.operationKey}><Lozenge appearance="success">Done</Lozenge> {titleOf(entries, d.itemId)}</li>)}
