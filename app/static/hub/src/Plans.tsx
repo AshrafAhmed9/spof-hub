@@ -14,6 +14,8 @@ const WhyDrawer = lazy(() => import('./WhyDrawer').then((m) => ({ default: m.Why
 
 export interface Run { planKey: string; leaverName: string; at: number; done: number; failed: number; undone: boolean; sample: boolean }
 
+const APPLY_BATCH = 5;
+
 type Phase = 'form' | 'review' | 'preview' | 'applying' | 'done';
 type Opt = { value: string; label: string; evidence?: string[] };
 
@@ -93,16 +95,28 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
     return n;
   });
 
-  const apply = () => {
+  const apply = async () => {
     if (!res) return;
     setPhase('applying'); setApplyErr(null);
-    api.applyPlan({ planKey: res.plan.planKey, approvedOperationKeys: approvedEntries.map(keyFor) }).then(
-      (r) => {
-        setResult(r); setPhase('done');
-        onRun({ planKey: res.plan.planKey, leaverName: res.plan.leaverName, at: Date.now(), done: r.done.length, failed: r.failed.length, undone: false, sample: r.skippedSample });
-      },
-      (e) => { setApplyErr(e); setPhase('preview'); },
-    );
+    const planKey = res.plan.planKey;
+    const sel = approvedEntries.map((e) => ({ itemId: e.itemId, key: keyFor(e) }));
+    // Small batches keep each call well inside the platform time limit.
+    const merged: ApplyResult = { planKey, done: [], failed: [], skippedSample: false };
+    for (let i = 0; i < sel.length; i += APPLY_BATCH) {
+      const part = sel.slice(i, i + APPLY_BATCH);
+      try {
+        const r = await api.applyPlan({ planKey, approvedOperationKeys: part.map((x) => x.key), choices: Object.fromEntries(part.map((x) => [x.itemId, choice[x.itemId]!])) });
+        merged.done.push(...r.done); merged.failed.push(...r.failed);
+        if (r.skippedSample) merged.skippedSample = true;
+      } catch (e) {
+        if (i === 0) { setApplyErr(e); setPhase('preview'); return; }
+        const reason = 'The request stopped before this one finished, so it may or may not have gone through. Apply again to finish; anything already done is skipped.';
+        for (const x of sel.slice(i)) merged.failed.push({ operationKey: x.key, itemId: x.itemId, reason });
+        break;
+      }
+    }
+    setResult(merged); setPhase('done');
+    onRun({ planKey, leaverName: res.plan.leaverName, at: Date.now(), done: merged.done.length, failed: merged.failed.length, undone: false, sample: merged.skippedSample });
   };
   const doRescan = () => {
     if (!res) return;
@@ -262,7 +276,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
                   ))}
                 </ul>
               </section>
-              {applyErr != null && <ErrorPanel error={applyErr} onRetry={apply} what="the result of applying" />}
+              {applyErr != null && <ErrorPanel error={applyErr} onRetry={apply} what="the result of applying" unchanged={false} />}
               <div className="row">
                 <PrimaryButton onClick={apply}>{sample ? 'Apply (sample only)' : `Apply ${plural(approvedEntries.length, 'change')}`}</PrimaryButton>
                 <Button onClick={() => setPhase('review')}>Back to review</Button>
@@ -301,13 +315,12 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
               {rescan ? (
                 <div aria-live="polite" className="stack-sm">
                   <p className="big num">{plural(rescan.before, 'item')} at risk before, {plural(rescan.remainingAtRisk, 'item')} with nobody covering now</p>
-                  <p className="subtle">Before: {plural(rescan.before, 'item')} with nobody covering. After: {rescan.remainingAtRisk}.</p>
                 </div>
               ) : <p className="subtle">Re-scan to confirm how many items still have nobody covering them.</p>}
-              {followErr != null && <ErrorPanel error={followErr} what="that" />}
+              {followErr != null && <ErrorPanel error={followErr} what="that" unchanged={false} />}
               <div className="row">
                 <PrimaryButton onClick={doRescan} isDisabled={busy !== null}>{busy === 'rescan' ? 'Re-scanning' : rescan ? 'Re-scan again' : 'Re-scan'}</PrimaryButton>
-                {result.done.length > 0 && !undo && <Button onClick={doUndo} isDisabled={busy !== null}>{busy === 'undo' ? 'Undoing' : 'Undo this run'}</Button>}
+                {result.done.length > 0 && (!undo || undo.failed.length > 0) && <Button onClick={doUndo} isDisabled={busy !== null}>{busy === 'undo' ? 'Undoing' : undo ? 'Undo again' : 'Undo this run'}</Button>}
               </div>
               {undo && (
                 <SectionMessage appearance={undo.failed.length ? 'warning' : 'success'} title={undo.failed.length ? `Undid ${undo.reverted}, but ${undo.failed.length} could not be put back` : `Undone. ${plural(undo.reverted, 'item')} put back as before.`}>

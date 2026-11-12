@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ApiLike } from './api';
-import { applyPlan, undoPlan, type ApplyDeps } from './apply';
+import { applyPlan, opKeyFor, undoPlan, type ApplyDeps } from './apply';
 import { buildHandoverPlan, type Graph } from './engine';
 import { memoryStore } from './kv';
 import { makeHandlers } from './resolvers';
-import type { Deps } from './service';
+import { rescan, type Deps } from './service';
 import type { OpRecord } from './types';
 
 const NOW = Date.UTC(2026, 5, 1);
@@ -173,6 +173,156 @@ describe('applyPlan idempotency', () => {
     expect(jira.state.watcherPosts).toBe(0);
     await undoPlan(deps, plan.planKey);
     expect(jira.state.watchers['ABC-1']).toEqual([e1.successor!.personId]);
+  });
+});
+
+describe('overriding the cover person', () => {
+  const pickOther = (e: { successor: { personId: string } | null }) => (['sam', 'lee'].find((id) => id !== e.successor?.personId))!;
+
+  it('applies to the chosen person, not the suggestion; a retry is a no-op; undo restores', async () => {
+    const { deps, plan, jira, e1, store } = await setup();
+    const other = pickOther(e1);
+    const key = opKeyFor(plan.planKey, 'ABC-1', other);
+    expect(key).not.toBe(e1.operationKey);
+
+    const r = await applyPlan(deps, plan.planKey, [key], { 'ABC-1': other });
+    expect(r.failed).toEqual([]);
+    expect(r.done).toEqual([{ operationKey: key, itemId: 'ABC-1' }]);
+    expect(jira.state.assignee['ABC-1']).toBe(other);
+    expect(jira.state.watchers['ABC-1']).toEqual([other]);
+    expect(JSON.stringify(jira.state.comments['ABC-1'])).toContain(`[ref ${key}]`);
+    expect((await store.get<OpRecord>(`op:${key}`))!.toAccountId).toBe(other);
+
+    await applyPlan(deps, plan.planKey, [key], { 'ABC-1': other });
+    expect(jira.state.puts).toBe(1);
+    expect(jira.state.commentPosts).toBe(1);
+    expect(jira.state.watcherPosts).toBe(1);
+
+    const u = await undoPlan(deps, plan.planKey);
+    expect(u).toEqual({ planKey: plan.planKey, reverted: 1, failed: [] });
+    expect(jira.state.assignee['ABC-1']).toBe('dana');
+    expect(jira.state.comments['ABC-1']).toEqual([]);
+    expect(jira.state.watchers['ABC-1']).toEqual([]);
+  });
+
+  it('uses the engine key when the pick matches the suggestion, and rejects a key for a pick that was not sent', async () => {
+    const { deps, plan, jira, e1 } = await setup();
+    const same = await applyPlan(deps, plan.planKey, [e1.operationKey], { 'ABC-1': e1.successor!.personId });
+    expect(same.done).toHaveLength(1);
+    expect(jira.state.assignee['ABC-1']).toBe(e1.successor!.personId);
+    const stray = await applyPlan(deps, plan.planKey, [opKeyFor(plan.planKey, 'ABC-2', pickOther(e1))]);
+    expect(stray.failed[0]!.reason).toMatch(/not part of this plan/);
+  });
+
+  it('records the keys before the first write, so undo sees an apply that stopped partway', async () => {
+    const { deps, plan, jira, e1, e2, store } = await setup();
+    const real = jira.api.asUser;
+    (jira.api as any).asUser = () => {
+      const c = real();
+      return { ...c, requestJira: async (r: any, init: any) => {
+        const path = typeof r === 'string' ? r : r.value;
+        if (/ABC-2/.test(path)) {
+          expect(await store.get<string[]>(`planops:${plan.planKey}`)).toEqual([e1.operationKey, e2.operationKey]);
+        }
+        return c.requestJira(r, init);
+      } };
+    };
+    const r = await applyPlan(deps, plan.planKey, [e1.operationKey, e2.operationKey]);
+    expect(r.done).toHaveLength(2);
+  });
+});
+
+describe('picks that must not be trusted', () => {
+  it('rejects a key derived for one person when choices names another', async () => {
+    const { deps, plan, jira, e1, store } = await setup();
+    await store.set('person:zed', { id: 'zed', name: 'Zed' });
+    const x = ['sam', 'lee'].find((id) => id !== e1.successor!.personId)!;
+    const r = await applyPlan(deps, plan.planKey, [opKeyFor(plan.planKey, 'ABC-1', x)], { 'ABC-1': 'zed' });
+    expect(r.done).toEqual([]);
+    expect(r.failed[0]!.reason).toMatch(/not part of this plan/);
+    expect(jira.state.puts).toBe(0);
+  });
+
+  it('ignores a choice that names the leaver or someone unknown', async () => {
+    const { deps, plan, jira } = await setup();
+    const r = await applyPlan(deps, plan.planKey, [opKeyFor(plan.planKey, 'ABC-1', 'dana'), opKeyFor(plan.planKey, 'ABC-1', 'ghost')], { 'ABC-1': 'ghost', 'ABC-2': 'dana' });
+    expect(r.done).toEqual([]);
+    expect(r.failed).toHaveLength(2);
+    expect(r.failed.every((f) => /not part of this plan/.test(f.reason))).toBe(true);
+    expect(jira.state.puts).toBe(0);
+  });
+});
+
+describe('partial applies and stacked ops', () => {
+  it('keeps item 1 when item 2 fails, and undo restores item 1', async () => {
+    const { deps, plan, jira, e1, e2 } = await setup();
+    const real = jira.api.asUser;
+    (jira.api as any).asUser = () => {
+      const c = real();
+      return { ...c, requestJira: async (r: any, init: any) => {
+        const path = typeof r === 'string' ? r : r.value;
+        if (/ABC-2\/assignee/.test(path) && init?.method === 'PUT') return { status: 500, ok: false, json: async () => ({}), text: async () => '{}' };
+        return c.requestJira(r, init);
+      } };
+    };
+    const r = await applyPlan(deps, plan.planKey, [e1.operationKey, e2.operationKey]);
+    expect(r.done.map((d) => d.itemId)).toEqual(['ABC-1']);
+    expect(r.failed.map((f) => f.itemId)).toEqual(['ABC-2']);
+    expect(jira.state.assignee['ABC-1']).toBe(e1.successor!.personId);
+    const u = await undoPlan(deps, plan.planKey);
+    expect(u.failed).toEqual([]);
+    expect(jira.state.assignee['ABC-1']).toBe('dana');
+    expect(jira.state.assignee['ABC-2']).toBeNull();
+  });
+
+  it('undoes two ops on one item (A, then B) in a single pass', async () => {
+    const { deps, plan, jira, e1 } = await setup();
+    const other = ['sam', 'lee'].find((id) => id !== e1.successor!.personId)!;
+    await applyPlan(deps, plan.planKey, [e1.operationKey]);
+    await applyPlan(deps, plan.planKey, [opKeyFor(plan.planKey, 'ABC-1', other)], { 'ABC-1': other });
+    expect(jira.state.assignee['ABC-1']).toBe(other);
+    const u = await undoPlan(deps, plan.planKey);
+    expect(u).toEqual({ planKey: plan.planKey, reverted: 2, failed: [] });
+    expect(jira.state.assignee['ABC-1']).toBe('dana');
+    expect(jira.state.comments['ABC-1']).toEqual([]);
+    expect(jira.state.watchers['ABC-1']).toEqual([]);
+  });
+});
+
+describe('rescan after an override', () => {
+  it('counts an overridden, applied item as covered', async () => {
+    const { store, jira, plan, e1 } = await setup();
+    const other = ['sam', 'lee'].find((id) => id !== e1.successor!.personId)!;
+    for (const p of graph.people) await store.set(`person:${p.id}`, p);
+    const real = jira.api.asUser();
+    const stamp = new Date(NOW - DAY).toISOString();
+    const site: any = {
+      async requestJira(r: any, init: any = {}) {
+        const path: string = typeof r === 'string' ? r : r.value;
+        const ok = (body: unknown) => ({ status: 200, ok: true, json: async () => body, text: async () => JSON.stringify(body) });
+        if (path.startsWith('/rest/api/3/search/jql')) {
+          const jql: string = JSON.parse(init.body).jql;
+          const keys = (/key in \((.*?)\)/.exec(jql)?.[1] ?? '').split(',').map((k) => k.replace(/"/g, '')).filter(Boolean);
+          return ok({ isLast: true, issues: keys.map((key) => ({ id: key.replace(/\D/g, ''), key, fields: {
+            summary: `Task ${key}`, status: { statusCategory: { key: 'indeterminate' } }, priority: { name: 'High' }, components: [{ name: 'billing' }], project: { key: 'ABC' },
+            assignee: jira.state.assignee[key] ? { accountId: jira.state.assignee[key], displayName: jira.state.assignee[key], accountType: 'atlassian', active: true } : null,
+            reporter: { accountId: 'dana', displayName: 'Dana', accountType: 'atlassian', active: true }, updated: stamp, created: stamp } })) });
+        }
+        if (/\/comment\?/.test(path) && /ABC-/.test(path)) {
+          const by = (id: string, n: number) => ({ author: { accountId: id, displayName: id, accountType: 'atlassian' }, created: new Date(NOW - n * DAY).toISOString() });
+          return ok({ comments: [by('dana', 2), by('dana', 3), by('dana', 4)] });
+        }
+        if (/\/changelog/.test(path)) return ok({ values: [], isLast: true });
+        return real.requestJira(r, init);
+      },
+    };
+    const deps: Deps = { api: { asApp: () => site, asUser: () => site }, store, queue: { push: async () => {} }, now: () => NOW, retry: { sleep: async () => {} } };
+    const before = await rescan(deps, 'live', plan.planKey);
+    const key = opKeyFor(plan.planKey, 'ABC-1', other);
+    const applied = await applyPlan({ ...deps, api: jira.api } as ApplyDeps, plan.planKey, [key], { 'ABC-1': other });
+    expect(applied.done).toHaveLength(1);
+    const after = await rescan(deps, 'live', plan.planKey);
+    expect(after.remainingAtRisk).toBe(before.remainingAtRisk - 1);
   });
 });
 

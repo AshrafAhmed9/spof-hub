@@ -14,7 +14,7 @@ const LABELS: Record<SetupCheck['id'], string> = {
 };
 const ORDER: SetupCheck['id'][] = ['jira-scopes', 'teamwork-graph', 'rovo', 'mcp', 'index'];
 
-export function Setup({ onStatus }: { onStatus: (s: SetupStatus) => void }) {
+export function Setup() {
   const [s, setS] = useState<SetupStatus | null>(null);
   const [err, setErr] = useState<unknown>(null);
   const [at, setAt] = useState(0);
@@ -22,8 +22,8 @@ export function Setup({ onStatus }: { onStatus: (s: SetupStatus) => void }) {
   const h = useFocusHeading('setup');
   const load = useCallback(() => {
     setBusy(true); setErr(null);
-    api.getSetupStatus().then((v) => { setS(v); onStatus(v); setAt(Date.now()); setBusy(false); }, (e) => { setErr(e); setBusy(false); });
-  }, [onStatus]);
+    api.getSetupStatus().then((v) => { setS(v); setAt(Date.now()); setBusy(false); }, (e) => { setErr(e); setBusy(false); });
+  }, []);
   useEffect(load, [load]);
 
   const checks = s ? [...s.checks].sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id)) : [];

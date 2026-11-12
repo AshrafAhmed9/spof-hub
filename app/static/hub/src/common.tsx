@@ -29,13 +29,14 @@ export function Loading({ label, rows = 4 }: { label: string; rows?: number }) {
   );
 }
 
-export function ErrorPanel({ error, onRetry, what = 'this' }: { error: unknown; onRetry?: () => void; what?: string }) {
+/** `unchanged` is the "Nothing was changed." sentence; turn it off where a write may have partly gone through. */
+export function ErrorPanel({ error, onRetry, what = 'this', unchanged = true }: { error: unknown; onRetry?: () => void; what?: string; unchanged?: boolean }) {
   const denied = error instanceof ApiError && error.denied;
   const detail = error instanceof Error ? error.message : String(error);
   if (denied) {
     return (
       <SectionMessage appearance="warning" title="You don't have access to this">
-        <p>You can't see {what}. If you think you should, ask a project admin to give you access. Nothing was changed.</p>
+        <p>You can't see {what}. If you think you should, ask a project admin to give you access.{unchanged && ' Nothing was changed.'}</p>
       </SectionMessage>
     );
   }
@@ -45,7 +46,7 @@ export function ErrorPanel({ error, onRetry, what = 'this' }: { error: unknown; 
       title={`Couldn't load ${what}`}
       actions={onRetry ? [<SectionMessageAction key="r" onClick={onRetry}>Try again</SectionMessageAction>] : []}
     >
-      <p>Nothing was changed.</p>
+      {unchanged && <p>Nothing was changed.</p>}
       <details style={{ marginTop: 8 }}>
         <summary style={{ cursor: 'pointer' }}>Details</summary>
         <p className="small subtle" style={{ marginTop: 4, overflowWrap: 'anywhere' }}>{detail}</p>

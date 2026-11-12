@@ -57,7 +57,12 @@ export interface PlanRequest {
 }
 export type PlanResponse = { plan: HandoverPlan; mode: Mode; partial: boolean; notes: string[] };
 
-export interface ApplyRequest { planKey: string; approvedOperationKeys: string[] }
+export interface ApplyRequest {
+  planKey: string;
+  approvedOperationKeys: string[];
+  /** Cover person picked per item (itemId to account id). A pick that differs from the suggestion gets its own operation key. */
+  choices?: Record<string, string>;
+}
 export interface ApplyResult {
   planKey: string;
   done: { operationKey: string; itemId: string }[];

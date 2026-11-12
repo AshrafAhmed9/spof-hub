@@ -40,6 +40,7 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
   const [show, setShow] = useState<'attention' | 'all'>('attention');
   const h = useFocusHeading('hub');
   const timer = useRef<number>();
+  const wasRunning = useRef(false); // reload only when a scan finishes, not whenever a poll sees 'done'
 
   const load = useCallback(() => {
     setData({ s: 'loading' });
@@ -51,8 +52,8 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
   const poll = useCallback(() => {
     api.getScanProgress().then((p) => {
       setScan(p);
-      if (p.state === 'running') timer.current = window.setTimeout(poll, 1500);
-      else if (p.state === 'done') load();
+      if (p.state === 'running') { wasRunning.current = true; timer.current = window.setTimeout(poll, 1500); }
+      else if (p.state === 'done' && wasRunning.current) { wasRunning.current = false; load(); }
     }, (e) => { setScanErr(e); setScan(null); });
   }, [load]);
   // Pick up a scan that is already running when the page opens.
@@ -61,6 +62,7 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
   const [scope, setScope] = useState('');
   const startScan = () => {
     setScanErr(null);
+    wasRunning.current = true;
     // Optional project keys, so a big site can be scanned a project at a time.
     const keys = scope.split(/[\s,]+/).map((k) => k.trim().toUpperCase()).filter(Boolean);
     api.startScan(keys.length ? keys : undefined).then((p) => { setScan(p); timer.current = window.setTimeout(poll, 1500); }, (e) => setScanErr(e));
@@ -160,13 +162,13 @@ function Hub({ setNav, onSetup, onSample }: { setNav: (n: Nav) => void; onSetup:
         <div className="stack-sm">
           <h1 ref={h} tabIndex={-1}>Coverage</h1>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+        {!(data.s === 'ok' && data.v.totals.itemsScanned === 0 && data.v.areas.length === 0) && <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
           <label className="scope">
                 <span>Only these projects (optional)</span>
                 <input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="e.g. MOB, CX" disabled={scanning} />
               </label>
           <Button onClick={startScan} isDisabled={scanning}>{scanning ? 'Scanning' : 'Scan again'}</Button>
-        </div>
+        </div>}
       </div>
       {scanning && scan && <ScanBar p={scan} />}
       {scan?.state === 'error' && <ErrorPanel error={new Error(scan.message ?? 'The scan stopped.')} onRetry={startScan} what="the scan" />}

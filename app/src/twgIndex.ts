@@ -158,6 +158,7 @@ async function readUser(deps: Deps, twg: TwgClient, id: string): Promise<string[
   const now = deps.now();
   const by = deps.viewerId ?? null;
   const out: string[] = [];
+  const who = (await deps.store.get<Person>(`person:${id}`))?.name ?? 'one person';
   const parts: Array<[string, () => Promise<TwgRows<any>>, (rows: any[]) => TwgRecord]> = [
     ['work', () => twg.atlassianUserWorkQuery(id), (r) => workRecord(r, id, now, by)],
     ['pulls', () => twg.atlassianUserPullRequests(id), (r) => pullRecord(r, now, by)],
@@ -166,7 +167,7 @@ async function readUser(deps: Deps, twg: TwgClient, id: string): Promise<string[
   for (const [part, read, build] of parts) {
     const r = await read();
     // A partial read (failed on a later page) is a failure; keep the older record rather than a truncated one.
-    if (!r.ok || !r.complete) out.push(`${part} for ${id}: ${r.notes[0] ?? 'incomplete'}`);
+    if (!r.ok || !r.complete) out.push(`${part} for ${who}: ${r.notes[0] ?? 'incomplete'}`);
     else await deps.store.set(recKey('u', id, part), build(r.rows));
   }
   return out;

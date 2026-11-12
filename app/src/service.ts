@@ -231,9 +231,15 @@ export async function rescan(deps: Deps, mode: Mode, planKey: string): Promise<R
   // Recompute from fresh data. The leaver's history does not change, so "still at risk" means the work
   // is still on the leaver (or nobody), or the handover was never applied.
   const fresh = await buildPlanFor(deps, 'live', { leaverId: plan.leaverId, from: plan.from, to: plan.to }, { persist: false });
+  // Ops are found through the keys stored at apply time, since a changed cover person has a different key from a fresh plan's.
+  const ops = new Map<string, { status: string }>();
+  for (const k of (await deps.store.get<string[]>(`planops:${planKey}`)) ?? []) {
+    const op = await deps.store.get<{ itemId: string; status: string }>(`op:${k}`);
+    if (op && (op.status === 'done' || !ops.has(op.itemId))) ops.set(op.itemId, op);
+  }
   let remaining = 0;
   for (const e of fresh.plan.groups.flatMap((g) => g.entries)) {
-    const op = await deps.store.get<{ status: string }>(`op:${e.operationKey}`);
+    const op = ops.get(e.itemId);
     const rec = await deps.store.get<IndexedItem>(`item:${e.itemId}`);
     const assignee = rec?.meta.assigneeId ?? null;
     const resolved = op?.status === 'done' && assignee !== null && assignee !== plan.leaverId && !failedIds.has(e.itemId);
@@ -242,7 +248,7 @@ export async function rescan(deps: Deps, mode: Mode, planKey: string): Promise<R
   return { planKey, remainingAtRisk: remaining, before: plan.totals.items };
 }
 
-export const apply = (deps: ApplyDeps, planKey: string, keys: string[]) => applyPlan(deps, planKey, keys);
+export const apply = (deps: ApplyDeps, planKey: string, keys: string[], choices?: Record<string, string>) => applyPlan(deps, planKey, keys, choices);
 export const undo = (deps: ApplyDeps, planKey: string) => undoPlan(deps, planKey);
 
 export async function setupStatus(deps: Deps, mode: Mode): Promise<SetupStatus> {

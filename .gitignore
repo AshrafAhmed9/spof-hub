@@ -11,3 +11,4 @@ graphify-out/
 *.log
 backtest/succ_*.json
 __pycache__/
+.codex/

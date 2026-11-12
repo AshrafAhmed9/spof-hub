@@ -148,9 +148,9 @@ export async function mockInvoke(name: string, payload?: unknown): Promise<unkno
       const key = String((payload as { key?: string } | undefined)?.key ?? 'PAY-1');
       if (key.endsWith('-0')) return { state: 'not-indexed', key };
       return { state: 'ok', key, holder: { name: 'Priya Nair', share: 0.86 }, contributions: 7, assignee: null, singlePoint: true, indexedAt: Date.now() - 36e5,
-        evidence: ['Only Priya Nair has answered here (6 of 7 replies)', 'Authored 2 of 3 page versions linked to this item'] };
+        evidence: ['Only Priya Nair has answered here (6 of 7 replies)'] };
     }
-    case 'buildPlan': return buildPlan(payload as PlanRequest);
+    case 'buildPlan': applied = 0; lastDone = 0; return buildPlan(payload as PlanRequest);
     case 'applyPlan': {
       const req = payload as ApplyRequest;
       await delay(900);
@@ -161,9 +161,9 @@ export async function mockInvoke(name: string, payload?: unknown): Promise<unkno
       }
       const ids = req.approvedOperationKeys.map((k) => ({ operationKey: k, itemId: lookup.get(k) ?? k }));
       if (mode === 'sample') return { planKey: req.planKey, done: [], failed: [], skippedSample: true } satisfies ApplyResult;
-      applied = ids.length;
+      applied += ids.length;
       const failIdx = scenario === 'applyfail' || scenario === 'live' ? ids.findIndex((x) => x.itemId === 'PAY-398') : -1;
-      lastDone = ids.length - (failIdx >= 0 ? 1 : 0);
+      lastDone += ids.length - (failIdx >= 0 ? 1 : 0);
       return {
         planKey: req.planKey, skippedSample: false,
         done: ids.filter((_, i) => i !== failIdx),

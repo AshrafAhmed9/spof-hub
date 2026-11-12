@@ -2,9 +2,9 @@
 // Every operation has a stored record keyed by operationKey; steps are recorded as they finish so a retry
 // resumes where it stopped and never repeats a finished step.
 import { route, withRetry, type ApiLike, type Client, type Retry } from './api';
-import type { HandoverPlan, PlanEntry } from './engine';
+import { stableKey, type HandoverPlan, type PlanEntry } from './engine';
 import type { Store } from './kv';
-import type { OpRecord } from './types';
+import type { OpRecord, Person } from './types';
 import type { ApplyResult, UndoResult } from '../shared/contract';
 
 export interface ApplyDeps { api: ApiLike; store: Store; now: () => number; retry?: Retry }
@@ -29,7 +29,7 @@ function explain(status: number, body: string): string {
     const j = JSON.parse(body) as { errorMessages?: string[]; errors?: Record<string, string> };
     msgs = [...(j.errorMessages ?? []), ...Object.values(j.errors ?? {})].filter(Boolean);
   } catch { /* not JSON */ }
-  const text = msgs.join(' ');
+  const text = msgs.join(' ').replace(/[0-9a-f]{24}|\d+:[0-9a-f-]{36}/g, 'that person');
   if (/cannot be assigned/i.test(text)) return 'Jira would not assign this issue to that person. Some issue types, such as Jira Product Discovery ideas, cannot be assigned at all; otherwise the person may lack the Assignable User permission. Choose someone else or change it in Jira.';
   if (status === 403 || /permission/i.test(text)) return 'You do not have permission to change this issue.';
   if (status === 404) return 'The issue could not be found. It may have been moved or deleted.';
@@ -44,54 +44,77 @@ async function currentAssignee(c: Client, key: string, retry?: Retry): Promise<s
 
 const adf = (text: string) => ({ type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] });
 
-export function commentText(plan: HandoverPlan, e: PlanEntry): string {
+export function commentText(plan: HandoverPlan, e: PlanEntry, toName: string, opKey: string): string {
   const why = e.reasons.slice(0, 2).join('. ');
   const from = new Date(plan.from).toISOString().slice(0, 10);
   const to = new Date(plan.to).toISOString().slice(0, 10);
-  return `Handover: ${plan.leaverName} is away ${from} to ${to}. ${e.successor!.name} now owns this item. Why: ${why}. [ref ${e.operationKey}]`;
+  return `Handover: ${plan.leaverName} is away ${from} to ${to}. ${toName} now owns this item. Why: ${why}. [ref ${opKey}]`;
 }
 
 const opKeyStore = (k: string) => `op:${k}`;
 
-export async function applyPlan(deps: ApplyDeps, planKey: string, approved: string[]): Promise<ApplyResult> {
+/** Same recipe as the engine's operationKey, so a cover person picked in the UI gets a key the server can recompute. */
+export const opKeyFor = (planKey: string, itemId: string, personId: string) => `op_${stableKey(`${planKey}|${itemId}|${personId}`)}`;
+
+interface Target { entry: PlanEntry; personId: string; name: string }
+
+/** The name of a person the plan may hand this item to, or null when the id is not someone we know. */
+async function knownName(deps: ApplyDeps, e: PlanEntry, id: string): Promise<string | null> {
+  const known = [e.successor, ...e.alternates].find((s) => s?.personId === id)?.name;
+  return known ?? (await deps.store.get<Person>(`person:${id}`))?.name ?? null;
+}
+
+export async function applyPlan(deps: ApplyDeps, planKey: string, approved: string[], choices: Record<string, string> = {}): Promise<ApplyResult> {
   const result: ApplyResult = { planKey, done: [], failed: [], skippedSample: false };
   const plan = await deps.store.get<HandoverPlan>(`plan:${planKey}`);
   if (!plan) {
     for (const k of approved) result.failed.push({ operationKey: k, itemId: '', reason: `Plan ${planKey} was not found. Build the plan again.` });
     return result;
   }
+  // The engine key covers its own suggestion; a different pick has a key derived from the chosen person.
+  const targets = new Map<string, Target>();
+  for (const e of plan.groups.flatMap((g) => g.entries)) {
+    if (e.successor) targets.set(e.operationKey, { entry: e, personId: e.successor.personId, name: e.successor.name });
+    const c = choices[e.itemId];
+    if (typeof c === 'string' && c !== e.successor?.personId && c !== plan.leaverId) {
+      const name = await knownName(deps, e, c);
+      if (name) targets.set(opKeyFor(planKey, e.itemId, c), { entry: e, personId: c, name });
+    }
+  }
+  const unique = [...new Set(approved)];
   const entries = new Map(plan.groups.flatMap((g) => g.entries).map((e) => [e.operationKey, e]));
+  // Recorded before the first write, so an undo after a timeout still sees the items that were applied.
   const listed = (await deps.store.get<string[]>(`planops:${planKey}`)) ?? [];
+  for (const k of unique) if ((targets.has(k) || entries.has(k)) && !listed.includes(k)) listed.push(k);
+  await deps.store.set(`planops:${planKey}`, listed);
   const user = deps.api.asUser();
 
-  for (const key of [...new Set(approved)]) {
-    const entry = entries.get(key);
+  for (const key of unique) {
+    const t = targets.get(key);
+    const entry = t?.entry ?? entries.get(key);
     if (!entry) {
       result.failed.push({ operationKey: key, itemId: '', reason: 'Operation key is not part of this plan.' });
       continue;
     }
     try {
-      await applyOne(deps, user, plan, entry);
+      await applyOne(deps, user, plan, entry, key, t?.personId, t?.name);
       result.done.push({ operationKey: key, itemId: entry.itemId });
     } catch (e) {
       result.failed.push({ operationKey: key, itemId: entry.itemId, reason: (e as Error).message });
     }
-    if (!listed.includes(key)) listed.push(key);
   }
-  await deps.store.set(`planops:${planKey}`, listed);
   return result;
 }
 
-async function applyOne(deps: ApplyDeps, c: Client, plan: HandoverPlan, e: PlanEntry): Promise<void> {
-  if (!e.successor) throw new StepError('No successor was suggested for this item.');
+async function applyOne(deps: ApplyDeps, c: Client, plan: HandoverPlan, e: PlanEntry, key: string, to: string | undefined, toName: string | undefined): Promise<void> {
+  if (!to || !toName) throw new StepError('No successor was suggested for this item.');
   if (e.kind !== 'workItem') throw new StepError(`Writes are only supported for Jira work items, not ${e.kind}s. Hand this one over by hand.`);
-  const to = e.successor.personId;
-  let op = await deps.store.get<OpRecord>(opKeyStore(e.operationKey));
+  let op = await deps.store.get<OpRecord>(opKeyStore(key));
   if (op?.status === 'done') return; // already applied: retry is a no-op
   if (!op || op.status === 'undone') {
-    op = { operationKey: e.operationKey, planKey: plan.planKey, itemId: e.itemId, toAccountId: to, toName: e.successor.name, status: 'applying', steps: {}, at: deps.now() };
+    op = { operationKey: key, planKey: plan.planKey, itemId: e.itemId, toAccountId: to, toName, status: 'applying', steps: {}, at: deps.now() };
   }
-  const save = async () => deps.store.set(opKeyStore(e.operationKey), op);
+  const save = async () => deps.store.set(opKeyStore(key), op);
   op.status = 'applying';
   delete op.error;
   await save();
@@ -115,13 +138,13 @@ async function applyOne(deps: ApplyDeps, c: Client, plan: HandoverPlan, e: PlanE
     // 2. comment (the [ref ...] tag lets a retry find a comment that posted but was not recorded)
     if (!op.steps.comment?.id) {
       if (op.steps.comment?.pending) {
-        const found = await findComment(c, e.itemId, e.operationKey, deps.retry);
+        const found = await findComment(c, e.itemId, key, deps.retry);
         if (found) op.steps.comment = { id: found };
       }
       if (!op.steps.comment?.id) {
         op.steps.comment = { pending: true };
         await save();
-        const res = await withRetry(() => c.requestJira(route`/rest/api/3/issue/${e.itemId}/comment`, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ body: adf(commentText(plan, e)) }) }), deps.retry);
+        const res = await withRetry(() => c.requestJira(route`/rest/api/3/issue/${e.itemId}/comment`, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ body: adf(commentText(plan, e, toName, key)) }) }), deps.retry);
         await expectOk(res, 'commenting');
         op.steps.comment = { id: String((await res.json()).id) };
       }
@@ -164,7 +187,8 @@ async function findComment(c: Client, key: string, opKey: string, retry?: Retry)
 
 export async function undoPlan(deps: ApplyDeps, planKey: string): Promise<UndoResult> {
   const out: UndoResult = { planKey, reverted: 0, failed: [] };
-  const keys = (await deps.store.get<string[]>(`planops:${planKey}`)) ?? [];
+  // Newest first, so two ops on one item (A, then B) unwind in the right order.
+  const keys = [...((await deps.store.get<string[]>(`planops:${planKey}`)) ?? [])].reverse();
   const c = deps.api.asUser();
   for (const k of keys) {
     const op = await deps.store.get<OpRecord>(opKeyStore(k));
@@ -194,7 +218,10 @@ export async function undoPlan(deps: ApplyDeps, planKey: string): Promise<UndoRe
       if (op.steps.assignee) {
         const a = op.steps.assignee;
         const cur = await currentAssignee(c, op.itemId, deps.retry);
-        if (cur !== a.now && cur !== a.prev) throw new StepError(`Assignee changed since the handover (now ${cur ?? 'nobody'}); left as is.`);
+        if (cur !== a.now && cur !== a.prev) {
+          const who = cur ? ((await deps.store.get<Person>(`person:${cur}`))?.name ?? 'someone else') : 'nobody';
+          throw new StepError(`Assignee changed since the handover (now ${who}); left as is.`);
+        }
         if (cur !== a.prev) {
           const res = await withRetry(() => c.requestJira(route`/rest/api/3/issue/${op.itemId}/assignee`, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ accountId: a.prev }) }), deps.retry);
           await expectOk(res, 'restoring assignee');

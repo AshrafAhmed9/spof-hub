@@ -127,7 +127,7 @@ describe('advanceTwg', () => {
     await advanceTwg(deps);
     const p = await getProgress(deps);
     expect(p.twg?.failed).toBe(1);
-    expect(p.message).toMatch(/1 Teamwork Graph reads failed.*incomplete, not empty.*work for u1/);
+    expect(p.message).toMatch(/1 Teamwork Graph reads failed.*incomplete, not empty.*work for Una/);
     expect((await store.list('twg:rec:')).some((r) => r.key.endsWith(':work'))).toBe(false);
   });
 

@@ -66,13 +66,13 @@ modules:
       name: Find single points of failure
       function: find-single-points-fn
       actionVerb: GET
-      description: Lists work items and pages where one person has done most of the recent work. Use for where do we depend on one person. Optionally narrow to an area.
+      description: Lists work items where one person has done most of the recent work. Use for where do we depend on one person. Optionally narrow to an area.
       inputs:
         area:
           title: Area
           type: string
           required: false
-          description: Component, project or space name, or part of it. Leave empty for
+          description: Component or project name, or part of it. Leave empty for
             everything.
         limit:
           title: Limit

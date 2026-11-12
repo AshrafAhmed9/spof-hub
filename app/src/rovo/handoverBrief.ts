@@ -24,6 +24,6 @@ export async function run(deps: Deps, p: RovoPayload) {
     window: { from: new Date(w.from).toISOString().slice(0, 10), to: new Date(w.to).toISOString().slice(0, 10) },
     totals: plan.totals,
     areas,
-    limits: 'This brief is read only. Nothing was reassigned. Apply the plan from the Handover hub after review.',
+    limits: 'This brief is read only. Nothing was reassigned. Apply the plan from the Depth Chart after review.',
   };
 }

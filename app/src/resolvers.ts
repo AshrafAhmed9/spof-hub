@@ -43,9 +43,8 @@ export function makeHandlers(deps: Deps) {
         console.warn('Teamwork Graph step failed:', String((e as Error).message));
       }
       const prog = await getProgress(deps);
-      if (prog.state === 'running') await clearCoverageCache(deps); // numbers are still moving
       if (prog.state === 'done') {
-        // Clear once per finished run, not on every poll, or opening the page would always bypass the cache.
+        // Clear once per finished run (startScan cleared at the start), not on every poll, or opening the page would always bypass the cache.
         const run = await deps.store.get<{ runId: string }>('scan:run');
         const seen = await deps.store.get<string>('covstamp');
         if (run && seen !== run.runId) {
@@ -70,7 +69,7 @@ export function makeHandlers(deps: Deps) {
       if (modeOf(p) === 'sample') return { planKey: req?.planKey ?? '', done: [], failed: [], skippedSample: true };
       if (!req?.planKey || !Array.isArray(req.approvedOperationKeys)) throw new Error('applyPlan needs planKey and approvedOperationKeys.');
       await clearCoverageCache(deps);
-      return apply(deps, req.planKey, req.approvedOperationKeys);
+      return apply(deps, req.planKey, req.approvedOperationKeys, req.choices);
     },
 
     [RESOLVERS.rescan]: (p: Payload): Promise<RescanResult> => guard(() => rescan(deps, modeOf(p), p?.planKey)),
