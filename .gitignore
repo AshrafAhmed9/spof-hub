@@ -10,3 +10,4 @@ app/.forge/
 graphify-out/
 *.log
 backtest/succ_*.json
+__pycache__/
