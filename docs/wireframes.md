@@ -129,7 +129,7 @@ Rules: plain sentences, at most 3 listed items, link out for the rest, never cla
 ```
 Setup check                                  Last checked 10:40 [Check again]
 +--------------------------------------------------------------------+
-| (check) Jira and Confluence read access         OK                  |
+| (check) Jira read access                        OK                  |
 | (check) Teamwork Graph                          OK                  |
 | (warn)  Teamwork Graph: PR data                 Missing permission. [How to fix]|
 | (check) Rovo agent                              Available           |
