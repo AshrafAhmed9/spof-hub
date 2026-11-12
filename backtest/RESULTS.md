@@ -57,7 +57,7 @@ Pairs where the departed person holds >=50% of decayed comment weight, split by 
 | BEAM | 1150 | 1116 | 34 | 1115 |
 | Development pooled | 385 | 327 (85%) | 58 | 319 |
 
-An assignee-based tool sees roughly 7 to 41% of these items. The split holds across all eight projects (HIVE is the lowest at 59%). Caveat: assignee is the current assignee, not the assignee at departure.
+Today's assignee field covers 3 to 41% of these items per project (7% pooled). The split holds across all eight projects (HIVE is the lowest at 59%). Caveat: assignee is the current assignee, not the assignee at departure.
 
 ## Caveats
 

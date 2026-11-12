@@ -1,6 +1,6 @@
 # Depth Chart privacy policy
 
-Last updated: 10 November 2026
+Last updated: 13 November 2026
 
 Depth Chart is an Atlassian Forge app. It runs on Atlassian's infrastructure and does not send your data anywhere else.
 
@@ -19,7 +19,7 @@ The app stores a scan index in Forge storage for your site. It holds Atlassian a
 
 - Jira read (work items, comments, status changes, users): to see who handled each item.
 - Jira write: only for changes a person approves in a plan (reassign, comment, watcher) and for undoing them. The app does not delete work items. Undo removes only the watcher or comment the app itself added.
-- Teamwork Graph read (work items, statuses, users, teams, goals, projects, pull requests, pages): to add evidence from linked work. Pages are counted for authorship and never shown in the app.
+- Teamwork Graph read (work items, statuses, users, teams, goals, projects, pull requests): to add evidence from linked work.
 - App storage: the scan index, plans and audit log, kept in Forge storage for your site.
 - Personal data reporting: the weekly report of stored account IDs described below.
 

@@ -1,5 +1,7 @@
 # Wireframes and information architecture
 
+Early design sketch from 9 November. The shipped app is Jira-only and the Rovo agent is read-only.
+
 Working name TBD. Plain-language copy only in the main UI. Raw scores live in a tooltip or "Why" drawer. Scores attach to work and areas, never a ranked list of people.
 Component and token names are Atlassian Design System as I know them; confirm exact names and APIs at atlassian.design before building.
 
