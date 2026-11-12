@@ -27,7 +27,7 @@ Among 1,416 high-concentration pairs on five Apache projects (items where someon
 
 A second check asked whether the suggested successor is the person who actually picked the work up after a contributor left. Over 518 item-person pairs from the same projects, the suggestion was in the top three 42% of the time, against 2% for a random pick and 41% for "whoever commented most on that item". So the suggestions come from the item's real history and are far better than chance, but this data doesn't show them beating that simple rule. See `backtest/RESULTS_SUCCESSOR.md`.
 
-**Data.** The example company is derived from public issue metadata of Apache Kafka (issues.apache.org, project KAFKA), with people replaced by fictional names and comment text removed. Apache Kafka is a trademark of the Apache Software Foundation; this project is not endorsed by the ASF.
+The example company is derived from public issue metadata of Apache Kafka (issues.apache.org, project KAFKA), with people replaced by fictional names and comment text removed. Apache Kafka is a trademark of the Apache Software Foundation; this project is not endorsed by the ASF.
 
 ## Installing
 
