@@ -15,6 +15,14 @@ When someone on your site runs a scan, the app reads Jira as the app itself. Rea
 
 The app stores a scan index in Forge storage for your site. It holds Atlassian account IDs and display names, counts of who contributed to each item, the plans you create, and an audit log of changes the app made. It stores work item summaries so results are readable. It does not store comment text or issue descriptions.
 
+## Permissions and why the app asks for them
+
+- Jira read (work items, comments, status changes, users): to see who handled each item.
+- Jira write: only for changes a person approves in a plan (reassign, comment, watcher) and for undoing them. The app does not delete work items. Undo removes only the watcher or comment the app itself added.
+- Teamwork Graph read (work items, statuses, users, teams, goals, projects, pull requests, pages): to add evidence from linked work. Pages are counted for authorship and never shown in the app.
+- App storage: the scan index, plans and audit log, kept in Forge storage for your site.
+- Personal data reporting: the weekly report of stored account IDs described below.
+
 ## Where it goes
 
 Nowhere. The app makes no outside network calls and has no connection to an AI service. Everything is computed inside Forge. The only outside party involved is Atlassian, which hosts Forge.
