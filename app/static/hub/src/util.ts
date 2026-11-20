@@ -30,9 +30,12 @@ export function plural(n: number, one: string, many = one + 's'): string {
 }
 /** Plain-language share. Exact numbers live only in the Why drawer. */
 export function shareWords(share: number): string {
-  if (share >= 0.9) return 'almost all';
-  if (share >= 0.7) return 'most';
-  if (share >= 0.5) return 'about half';
+  // Bucket on the rounded percent so the words never disagree with the displayed number.
+  const p = Math.round(share * 100);
+  if (p >= 100) return 'all';
+  if (p >= 90) return 'almost all';
+  if (p >= 70) return 'most';
+  if (p >= 50) return 'about half';
   return 'a large part';
 }
 export function pct(n: number): string {
