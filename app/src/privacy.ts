@@ -3,6 +3,7 @@
 // https://developer.atlassian.com/platform/forge/user-privacy-guidelines/
 import type { Store } from './kv';
 import type { Person } from './engine';
+import { clearSnapshot } from './snapshot';
 
 export interface Account { accountId: string; updatedAt: string }
 export interface AccountUpdate { accountId: string; status: 'updated' | 'closed' }
@@ -86,6 +87,8 @@ async function erase(store: Store, closed: Set<string>): Promise<void> {
       if (s.changed) await store.set(r.key, s.value);
     }
   }
+  // The snapshot and deltas hold copies of item records. Drop them so no erased id survives; the next read rebuilds from the scrubbed records.
+  await clearSnapshot(store);
   for (const r of await store.list<unknown>('plan:')) {
     const text = JSON.stringify(r.value);
     if ([...closed].some((id) => text.includes(id))) await store.del(r.key);

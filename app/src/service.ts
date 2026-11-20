@@ -5,6 +5,7 @@ import { assembleGraph, filterVisible, pruneGraph } from './adapters';
 import { computeCoverage, currentAssignee, MIN_EVIDENCE, SINGLE_POINT, topPerItem } from './analysis';
 import { absenceTimeline, buildHandoverPlan, explainConcentration, isBot, type Graph, type HandoverPlan, type Person } from './engine';
 import { indexKeys, type ScanDeps } from './scan';
+import { DELTA_LIMIT, loadItems, writeSnapshot } from './snapshot';
 import { loadSample, type SampleOrg } from './sample';
 import { TwgClient } from './twgClient';
 import { liftOf, mergeTwg, type TwgRecord } from './twgIndex';
@@ -62,17 +63,22 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   const notes: string[] = [];
   const t0 = Date.now();
   // Independent prefixes are read together. Item keys are Jira keys (first character A-Z), so that prefix is read as 26 parallel cursor chains.
-  const [recs, peopleRows, twgRecs] = await Promise.all([
-    deps.store.list<IndexedItem>('item:', undefined, JIRA_KEY_START),
+  const [loaded, peopleRows, twgRecs] = await Promise.all([
+    loadItems(deps.store, JIRA_KEY_START),
     deps.store.list<Person>('person:'),
     deps.store.list<TwgRecord>('twg:rec:'),
   ]);
   const tList = Date.now();
+  const recs = loaded.recs;
+  // A missing snapshot or a long delta list is folded into a new snapshot while the rest of the read runs.
+  const rebuild = loaded.recs.length > 0 && (loaded.source === 'listing' || loaded.deltas > DELTA_LIMIT)
+    ? writeSnapshot(deps.store, loaded.recs, loaded.applied, deps.now()).catch((e) => console.warn('snapshot rebuild failed:', String((e as Error).message)))
+    : Promise.resolve();
   const people = peopleRows.map((p) => p.value);
   if (recs.length === 0) {
     return { graph: { people: [], items: [], edges: [] }, now: deps.now(), partial: true, notes: ['The index is empty. Open Depth Chart in Jira and run a scan. An empty result here is not evidence that nothing is at risk.'], mode };
   }
-  const restRecs = recs.map((r) => r.value);
+  const restRecs = recs;
   const twg = await mergeTwg(deps, restRecs, twgRecs.map((r) => r.value));
   const tMerge = Date.now();
   // Only Jira keys and pages can be permission-checked with REST; PRs and goals are gated by viewer in mergeTwg.
@@ -98,7 +104,8 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   graph = { ...graph, people: graph.people.map((p) => ({ ...p, load: Math.min(1, (open.get(p.id) ?? 0) / LOAD_CAPACITY) })) };
   const lift = twg.hasRecords ? liftOf(twg, new Set(graph.items.map((i) => i.id))) : undefined;
   const restOnly = twg.hasRecords ? pruneGraph(assembleGraph(restRecs, allPeople), keep) : undefined;
-  console.log(`timing loadGraph kvList=${tList - t0}ms (items=${recs.length} people=${peopleRows.length} twg=${twgRecs.length}) merge=${tMerge - tList}ms visibility=${tVis - tMerge}ms (asked=${restRecs.length + twg.needsCheck.length}) assemble=${Date.now() - tVis}ms total=${Date.now() - t0}ms`);
+  await rebuild;
+  console.log(`timing loadGraph kvList=${tList - t0}ms snapshot=${loaded.source === 'snapshot' ? 'hit' : 'miss'} deltas=${loaded.deltas} (items=${recs.length} people=${peopleRows.length} twg=${twgRecs.length}) merge=${tMerge - tList}ms visibility=${tVis - tMerge}ms (asked=${restRecs.length + twg.needsCheck.length}) assemble=${Date.now() - tVis}ms total=${Date.now() - t0}ms`);
   return { graph, now: deps.now(), partial: notes.length > 0, notes, mode, ...(lift ? { lift } : {}), ...(restOnly ? { restOnly } : {}) };
 }
 

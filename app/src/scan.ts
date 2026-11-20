@@ -11,6 +11,7 @@ import type { ApiLike, Retry } from './api';
 import type { Person } from './engine';
 import type { Store } from './kv';
 import type { ScanProgress } from '../shared/contract';
+import { putItem } from './snapshot';
 
 export interface PushQueue { push(events: Array<{ body: Record<string, unknown> }>): Promise<unknown> }
 
@@ -193,7 +194,7 @@ export async function indexKeys(deps: ScanDeps, keys: string[]): Promise<{ index
   for (const issue of issues) {
     try {
       const built = await indexIssue(app, issue, deps.now(), deps.siteUrl, deps.retry);
-      await deps.store.set(`item:${issue.key}`, built.record);
+      await putItem(deps.store, issue.key, built.record, deps.now());
       for (const p of built.people) people.set(p.id, { ...people.get(p.id), ...p });
       indexed++;
     } catch (e) {

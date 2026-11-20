@@ -7,6 +7,7 @@ import { timeline, apply, buildPlanFor, clearCoverageCache, coverage, issueKnowl
 import { getProgress, hasPending, pumpScan, startScan } from './scan';
 import { advanceTwg } from './twgIndex';
 import { SampleMissingError } from './sample';
+import { refreshSnapshot } from './snapshot';
 
 type Payload = Record<string, any> | undefined;
 
@@ -50,6 +51,8 @@ export function makeHandlers(deps: Deps) {
         if (run && seen !== run.runId) {
           await clearCoverageCache(deps);
           await deps.store.set('covstamp', run.runId);
+          // The scan wrote one delta per item; fold them into the snapshot so reads stay fast.
+          await refreshSnapshot(deps.store, deps.now()).catch((e) => console.warn('snapshot refresh failed:', String((e as Error).message)));
         }
       }
       const twgOpen = !!prog.twg && prog.twg.done < prog.twg.total;

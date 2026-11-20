@@ -45,7 +45,7 @@ describe('Find what needs cover on a 2,000-item index', () => {
     const res = await buildPlanFor(deps, 'live', { leaverId: 'u0', from: NOW, to: NOW + 14 * DAY }, { persist: false });
     const ms = Date.now() - t;
     expect(res.plan.totals.items).toBeGreaterThan(300);
-    expect([...lists].sort()).toEqual(['item:', 'person:', 'twg:rec:']);
+    expect([...lists].sort()).toEqual(['item:', 'person:', 'snap:delta:', 'twg:rec:']);
     expect(ms).toBeLessThan(10_000);
   });
 });
