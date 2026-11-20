@@ -55,7 +55,7 @@ export function opKeyFor(planKey: string, itemId: string, personId: string): str
   return `op_${stableKey(`${planKey}|${itemId}|${personId}`)}`;
 }
 
-/** First name for compact labels. Folded accounts like "Community contributor B" keep their full name. */
+/** First name for compact labels. */
 export function shortName(name: string): string {
-  return /^Community contributor/i.test(name) ? name : name.split(' ')[0] ?? name;
+  return name.split(' ')[0] ?? name;
 }

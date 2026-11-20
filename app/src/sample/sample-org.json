@@ -88,9 +88,9 @@
 {"id":"p30","name":"Tessa Abara","team":"Data Flow","load":0.47},
 {"id":"p31","name":"Marek Petrov","team":"Platform","load":0.68,"active":false},
 {"id":"p32","name":"Yusuf Arvidsson","team":"Identity","load":0.19,"active":false},
-{"id":"x1","name":"Community contributor A","team":"Community","load":0.95},
-{"id":"x2","name":"Community contributor B","team":"Community","load":0.95},
-{"id":"x3","name":"Community contributor C","team":"Community","load":0.95},
+{"id":"x1","name":"Lena Fairbanks","team":"Community","load":0.95},
+{"id":"x2","name":"Idris Calloway","team":"Community","load":0.95},
+{"id":"x3","name":"Maren Oyelaran","team":"Community","load":0.95},
 {"id":"bot1","name":"Build Bot","isBot":true}
 ],
 "leavers":[

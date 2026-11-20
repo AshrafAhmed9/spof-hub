@@ -215,7 +215,7 @@ def main():
     on_leave = [p["id"] for p in people if p["id"] not in {l["personId"] for l in leavers}][-2:]
     for p in people:
         if p["id"] in on_leave: p["active"] = False
-    for x, nm in zip(ext_ids, ["Community contributor A", "Community contributor B", "Community contributor C"]):
+    for x, nm in zip(ext_ids, ["Lena Fairbanks", "Idris Calloway", "Maren Oyelaran"]):
         people.append({"id": x, "name": nm, "team": "Community", "load": 0.95})
     people.append({"id": BOTID, "name": "Build Bot", "isBot": True})
     used_people = {e[0] for e in edges}

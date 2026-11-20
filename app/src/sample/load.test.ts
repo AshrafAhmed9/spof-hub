@@ -58,6 +58,14 @@ describe('sample org: graph validity', () => {
     expect(Math.max(...a.graph.edges.map((e) => e.at))).toBeLessThanOrEqual(NOW);
   });
 
+  it('gives every person a real-looking name and keeps the item count', () => {
+    for (const p of people.filter((x) => !x.isBot)) {
+      expect(p.name).not.toMatch(/^Community contributor/i);
+      expect(p.name.trim().split(/\s+/).length).toBeGreaterThanOrEqual(2);
+    }
+    expect(items.filter((i) => i.kind === 'workItem').length).toBe(359);
+  });
+
   it('has the disclosure fields', () => {
     expect(s.metadata.license).toMatch(/Apache/);
     expect(s.metadata.syntheticDisclosure).toMatch(/Goals, teams/);
