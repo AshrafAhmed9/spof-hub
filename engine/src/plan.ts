@@ -42,6 +42,8 @@ export interface PlanEntry {
   reasons: string[];
   breakdown: RiskBreakdown;
   successor: Successor | null;
+  /** Why successor is null: nobody fits, or everyone who fits already has the per-person limit. */
+  noSuccessorReason?: 'no-candidates' | 'at-cap';
   alternates: Successor[];
   /** Stable key for later writes; same plan inputs and choice give the same key. */
   operationKey: string;
@@ -61,6 +63,8 @@ export interface HandoverPlan {
   to: number;
   groups: PlanGroup[];
   totals: { items: number; withoutSuccessor: number };
+  /** The per-person limit this plan was built with, when there was one. */
+  maxPerPerson?: number;
 }
 
 /** Two FNV-1a passes with different offsets, 16 hex chars. Not cryptographic. */
@@ -123,10 +127,12 @@ export function buildHandoverPlan(graph: Graph, req: PlanRequest, opts: PlanOpti
     const it = items.get(r.itemId)!;
     let successor: Successor | null;
     let alternates: Successor[];
+    let atCap = false;
     if (pools && chosen) {
       const pick = chosen[idx];
       const pool = pools[idx]!;
       successor = pick ? (pool.find((c) => c.personId === pick) ?? null) : null;
+      atCap = !successor && pool.length > 0;
       alternates = pool.filter((c) => c.personId !== pick).slice(0, nAlt);
     } else {
       // Ask for extra so ineligible people can be dropped without leaving the item empty.
@@ -147,6 +153,7 @@ export function buildHandoverPlan(graph: Graph, req: PlanRequest, opts: PlanOpti
       reasons: ex.reasons,
       breakdown: ex.breakdown,
       successor,
+      ...(successor ? {} : { noSuccessorReason: atCap ? ('at-cap' as const) : ('no-candidates' as const) }),
       alternates,
       operationKey: `op_${stableKey(`${planKey}|${it.id}|${successor?.personId ?? 'none'}`)}`,
     });
@@ -169,5 +176,6 @@ export function buildHandoverPlan(graph: Graph, req: PlanRequest, opts: PlanOpti
     to: req.to,
     groups,
     totals: { items: entries.length, withoutSuccessor: entries.filter((e) => !e.successor).length },
+    ...(cap !== undefined && cap > 0 ? { maxPerPerson: cap } : {}),
   };
 }

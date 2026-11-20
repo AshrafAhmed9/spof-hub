@@ -76,6 +76,17 @@ describe('plan with a per-person limit', () => {
     expect(counts.size).toBeGreaterThan(0);
     for (const n of counts.values()) expect(n).toBeLessThanOrEqual(2);
   });
+  it('says why an item has no successor', () => {
+    const capped = buildHandoverPlan(fixtureOrg, req, { maxPerPerson: 1 });
+    const es = capped.groups.flatMap((g) => g.entries);
+    expect(capped.maxPerPerson).toBe(1);
+    for (const e of es) expect(e.noSuccessorReason !== undefined).toBe(e.successor === null);
+    const atCap = es.filter((e) => e.noSuccessorReason === 'at-cap');
+    expect(atCap.length).toBeGreaterThan(0);
+    for (const e of atCap) expect(e.alternates.length).toBeGreaterThan(0);
+    const none = buildHandoverPlan(fixtureOrg, req, { maxPerPerson: 1, eligible: () => false });
+    for (const e of none.groups.flatMap((g) => g.entries)) expect(e.noSuccessorReason).toBe('no-candidates');
+  });
   it('leaves behaviour unchanged when no limit is set', () => {
     const a = buildHandoverPlan(fixtureOrg, req);
     const b = buildHandoverPlan(fixtureOrg, req, { maxPerPerson: undefined });

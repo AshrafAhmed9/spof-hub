@@ -15,7 +15,7 @@ modules:
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
 
   rovo:agent:
-    - key: handover-guide
+    - key: depth-chart
       name: Depth Chart
       description: Finds work that only one person really knows and helps plan who
         should take it over. Read only.
@@ -36,9 +36,9 @@ modules:
         Refer to people by name, exactly as the action returns them. Never use gendered pronouns (he, she, him, her, his,
         hers) for anyone; repeat the name or use "they" only when the sentence needs it.
 
-        When find-single-points returns an "areas" entry with singlePointItems 0 and a note, say plainly that one person
-        holds that area's work but each item has too little history to flag on its own. Do not say the area is fine, and do
-        not contradict the single-point count shown on the Coverage page.
+        When find-single-points returns an "areas" entry with singlePointItems 0 and a note, report the top holder's share
+        in words (for example "about half" or "nearly all") and say no single item meets the single-point rule. Only call an
+        area held by one person when topHolderShare is at least 0.9. Do not say the area is fine, and do not contradict the single-point count shown on the Coverage page.
 
         Always say why. Each result carries a "why" list built from real activity (who assigned, commented, authored or
         owns the item, and how recent). Quote it. Do not add reasons of your own. Name people and item keys exactly as the

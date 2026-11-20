@@ -48,6 +48,7 @@ export function compactEntry(e: PlanEntry) {
     holds: round(e.concentration),
     dueDuringAbsence: e.dueDuringAbsence,
     why: e.reasons.slice(0, 4),
+    ...(e.successor ? {} : { noSuggestionReason: e.noSuccessorReason === 'at-cap' ? 'Everyone suitable is already at the per-person limit.' : 'No one has enough history on this work.' }),
     suggested: e.successor ? { id: e.successor.personId, name: e.successor.name, because: e.successor.evidence.slice(0, 3) } : null,
   };
 }

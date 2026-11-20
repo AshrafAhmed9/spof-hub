@@ -241,7 +241,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
                               </td>
                               <td data-label="Why this person">
                                 {cur?.thin && <div><span title="Little history on this component. Check before approving."><Lozenge>Thin evidence</Lozenge><span className="sr-only"> Little history on this component. Check before approving.</span></span></div>}
-                                {cur ? (cur.evidence?.[0] ?? 'No direct history on this work. Suggested from the people around it.') : <span className="subtle">No clear fit. Choose someone to approve.</span>}
+                                {cur ? (cur.evidence?.[0] ?? 'No direct history on this work. Suggested from the people around it.') : <span className="subtle">{e.noSuccessorReason === 'at-cap' && res?.plan.maxPerPerson ? `Everyone suitable already has ${res.plan.maxPerPerson} items. Raise the limit or choose someone.` : 'No clear fit. Choose someone to approve.'}</span>}
                                 {cur && (cur.evidence?.length ?? 0) > 1 && <ul className="evidence">{cur.evidence!.slice(1).map((x, i) => <li key={i}>{x}</li>)}</ul>}
                               </td>
                               <td data-label="Approve">

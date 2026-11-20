@@ -1,4 +1,4 @@
-import { computeCoverage, findSinglePoints, MIN_EVIDENCE, round } from '../analysis';
+import { computeCoverage, findSinglePoints, MIN_EVIDENCE, round, SINGLE_POINT } from '../analysis';
 import type { Deps } from '../service';
 import { MAX_ROWS, graphOrError, str, type RovoPayload } from './common';
 
@@ -21,7 +21,9 @@ export async function run(deps: Deps, p: RovoPayload) {
       singlePointItems: a.singlePointItems,
       topHolder: a.topPerson.name,
       topHolderShare: round(a.topPerson.share),
-      ...(a.singlePointItems === 0 ? { note: `Held by one person, but no item has ${MIN_EVIDENCE} recorded contributions yet, so none is listed as a single point.` } : {}),
+      ...(a.singlePointItems === 0
+        ? { note: `${a.topPerson.name} holds ${Math.round(a.topPerson.share * 100)}% of this area's recorded work. No single item meets the single-point rule (${MIN_EVIDENCE}+ recorded contributions with one person holding at least ${Math.round(SINGLE_POINT * 100)}% of them).` }
+        : {}),
     }));
   const notes = [...g.notes];
   if (area && matches.length === 0) notes.push(`No area matches "${area}". Areas are Jira project keys or component names, for example: ${cov.slice(0, 8).map((a) => a.area).join(', ') || 'none indexed'}.`);

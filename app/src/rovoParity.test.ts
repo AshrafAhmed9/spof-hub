@@ -56,7 +56,7 @@ describe('Rovo find_single_points and the hub Coverage page agree', () => {
       expect(out.count).toBe(0);
       expect(out.areas).toHaveLength(1);
       expect(out.areas[0]).toMatchObject({ area: 'MPLAT', items: 31, singlePointItems: 0, topHolder: 'Max Taylor', topHolderShare: 1 });
-      expect(out.areas[0]!.note).toMatch(/no item has 3 recorded contributions/);
+      expect(out.areas[0]!.note).toMatch(/Max Taylor holds 100% of this area's recorded work\. No single item meets the single-point rule \(3\+ recorded contributions with one person holding at least 80%/);
     }
   });
 
