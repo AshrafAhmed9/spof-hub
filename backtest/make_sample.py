@@ -80,6 +80,8 @@ def main():
     rng.shuffle(combos)
     pid = {n: f"p{k+1:02d}" for k, n in enumerate(names)}
     pname = {pid[n]: combos[k] for k, n in enumerate(names)}
+    # keep first names unique across the sample (the shuffle can repeat one)
+    pname.update({"p02": "Callum Hargreave", "p07": "Bastien Lindqvist", "p31": "Emeric Petrov"})
     ext_ids = ["x1", "x2", "x3"]
     def person_of(name):
         if name in pid: return pid[name]

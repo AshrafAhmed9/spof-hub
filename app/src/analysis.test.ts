@@ -30,6 +30,17 @@ describe('single point evidence', () => {
     const s = loadSample(NOW);
     expect(computeCoverage(s.graph, s.asOf).totals.singlePointItems).toBeGreaterThan(0);
   });
+  it('matches the Coverage numbers shown for the sample company', () => {
+    const s = loadSample(NOW);
+    const c = computeCoverage(s.graph, s.asOf);
+    expect(c.totals.itemsScanned).toBe(359);
+    expect(c.totals.singlePointItems).toBe(30);
+    expect(c.totals.invisibleToAssignee).toBe(48);
+    // same rule as the Needs attention filter in Coverage.tsx
+    expect(c.areas.filter((x) => x.truckFactor <= 1 || x.singlePointItems > 0)).toHaveLength(6);
+    const billing = c.areas.find((x) => x.area === 'billing-sync')!;
+    expect([billing.singlePointItems, billing.items]).toEqual([11, 77]);
+  });
 });
 
 describe('plan limit per person (service level)', () => {
