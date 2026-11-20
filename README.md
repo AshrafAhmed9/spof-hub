@@ -44,7 +44,7 @@ An agent skill file for third-party agents is in [docs/mcp-skill.md](docs/mcp-sk
 ## Known limits
 
 - Teamwork Graph is in preview and its reads run as the viewing user, so they only advance while the page is open.
-- Scans are slow on large sites and need the page open. Each page load reads the whole index from Forge storage, which counts against the free monthly allowance; a 5,000-item index used about three quarters of it over a few days of testing.
+- Scans are slow on large sites and need the page open. Each page load reads the whole index from Forge storage, which counts against the free monthly allowance.
 - An item counts as depending on one person only when it has at least three recorded contributions and one person holds 80% or more of them.
 - Some issue types cannot be assigned (Jira Product Discovery ideas). Those changes are refused by Jira and reported as not applied.
 - The queue that would run scans in the background returned errors on the test site, so scans use a stored work list instead.
