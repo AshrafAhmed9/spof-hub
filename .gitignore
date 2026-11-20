@@ -12,3 +12,5 @@ graphify-out/
 backtest/succ_*.json
 __pycache__/
 .codex/
+AGENTS.md
+depthchart-share/
