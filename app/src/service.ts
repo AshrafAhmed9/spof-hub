@@ -44,11 +44,15 @@ async function cachedVisible(deps: Deps, ids: string[]): Promise<{ visible: Set<
   const key = `cov:vis:${deps.viewerId ?? 'anon'}`;
   const hit = await deps.store.get<{ at: number; ids: string[]; asked: number; notes: string[] }>(key).catch(() => undefined);
   if (hit && hit.asked === ids.length && deps.now() - hit.at < COVERAGE_TTL_MS) return { visible: new Set(hit.ids), notes: hit.notes };
+  const t = Date.now();
   const vis = await filterVisible(deps.api, ids, deps.retry);
+  console.log(`timing filterVisible cold ids=${ids.length} visible=${vis.visible.size} ${Date.now() - t}ms`);
   // A result with failed checks is not kept, so the next read tries again.
   if (vis.notes.length === 0) await deps.store.set(key, { at: deps.now(), ids: [...vis.visible], asked: ids.length, notes: vis.notes }).catch(() => undefined);
   return vis;
 }
+
+const JIRA_KEY_START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   if (mode === 'sample') {
@@ -56,20 +60,24 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
     return { graph: s.graph, now: s.asOf, partial: false, notes: [], mode };
   }
   const notes: string[] = [];
-  // Independent prefixes are read together; each one pages by cursor, so they cannot be split further.
+  const t0 = Date.now();
+  // Independent prefixes are read together. Item keys are Jira keys (first character A-Z), so that prefix is read as 26 parallel cursor chains.
   const [recs, peopleRows, twgRecs] = await Promise.all([
-    deps.store.list<IndexedItem>('item:'),
+    deps.store.list<IndexedItem>('item:', undefined, JIRA_KEY_START),
     deps.store.list<Person>('person:'),
     deps.store.list<TwgRecord>('twg:rec:'),
   ]);
+  const tList = Date.now();
   const people = peopleRows.map((p) => p.value);
   if (recs.length === 0) {
     return { graph: { people: [], items: [], edges: [] }, now: deps.now(), partial: true, notes: ['The index is empty. Open Depth Chart in Jira and run a scan. An empty result here is not evidence that nothing is at risk.'], mode };
   }
   const restRecs = recs.map((r) => r.value);
   const twg = await mergeTwg(deps, restRecs, twgRecs.map((r) => r.value));
+  const tMerge = Date.now();
   // Only Jira keys and pages can be permission-checked with REST; PRs and goals are gated by viewer in mergeTwg.
   const vis = await cachedVisible(deps, [...restRecs.map((r) => r.item.id), ...twg.needsCheck]);
+  const tVis = Date.now();
   notes.push(...vis.notes);
   const hidden = recs.length - restRecs.filter((r) => vis.visible.has(r.item.id)).length;
   if (hidden > 0 && vis.notes.length === 0) notes.push(`${hidden} indexed items are hidden from you by permissions and are not counted.`);
@@ -90,6 +98,7 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
   graph = { ...graph, people: graph.people.map((p) => ({ ...p, load: Math.min(1, (open.get(p.id) ?? 0) / LOAD_CAPACITY) })) };
   const lift = twg.hasRecords ? liftOf(twg, new Set(graph.items.map((i) => i.id))) : undefined;
   const restOnly = twg.hasRecords ? pruneGraph(assembleGraph(restRecs, allPeople), keep) : undefined;
+  console.log(`timing loadGraph kvList=${tList - t0}ms (items=${recs.length} people=${peopleRows.length} twg=${twgRecs.length}) merge=${tMerge - tList}ms visibility=${tVis - tMerge}ms (asked=${restRecs.length + twg.needsCheck.length}) assemble=${Date.now() - tVis}ms total=${Date.now() - t0}ms`);
   return { graph, now: deps.now(), partial: notes.length > 0, notes, mode, ...(lift ? { lift } : {}), ...(restOnly ? { restOnly } : {}) };
 }
 
@@ -165,34 +174,58 @@ export function findPerson(g: Graph, text: string): { person?: Person; error?: s
   return { error: `"${text}" matches ${m.length} people: ${m.slice(0, 6).map((p) => p.name).join(', ')}. Ask which one.` };
 }
 
-/** Adds the leaver's team (and teammates') from Teamwork Graph so the successor ranking can prefer same-team people. */
-async function enrichTeams(deps: Deps, g: Graph, leaverId: string, notes: string[]): Promise<Graph> {
-  if (!deps.twg) return g;
+interface TeamInfo { name: string; ids: Set<string> }
+
+/** The leaver's team and its members from Teamwork Graph, so the successor ranking can prefer same-team people. */
+async function fetchTeam(deps: Deps, leaverId: string, notes: string[]): Promise<TeamInfo | undefined> {
+  if (!deps.twg) return undefined;
   const twg = deps.twg();
   const teams = await twg.atlassianUserInTeams(leaverId);
   notes.push(...teams.notes);
   const team = teams.rows[0];
   if (!team) {
     if (teams.ok && teams.empty) notes.push('Teamwork Graph returned no team for this person (no team, or scope/permission missing); team preference was not applied.');
-    return g;
+    return undefined;
   }
   const members = await twg.atlassianTeamMembers(team.id);
   notes.push(...members.notes);
-  const ids = new Set(members.rows.map((m) => m.accountId));
-  return { ...g, people: g.people.map((p) => (p.id === leaverId || ids.has(p.id) ? { ...p, team: team.name } : p)) };
+  return { name: team.name, ids: new Set(members.rows.map((m) => m.accountId)) };
+}
+
+function applyTeam(g: Graph, leaverId: string, t: TeamInfo | undefined): Graph {
+  if (!t) return g;
+  return { ...g, people: g.people.map((p) => (p.id === leaverId || t.ids.has(p.id) ? { ...p, team: t.name } : p)) };
 }
 
 export async function buildPlanFor(deps: Deps, mode: Mode, req: PlanRequest, opts: { persist?: boolean } = {}): Promise<PlanResponse> {
+  const t0 = Date.now();
+  const notes: string[] = [];
+  // The team lookup does not depend on the graph, so it runs while the graph loads.
+  const teamsNotes: string[] = [];
+  const teamsP = mode === 'live' ? fetchTeam(deps, req.leaverId, teamsNotes).then((v) => ({ v, ms: Date.now() - t0 })) : undefined;
   const loaded = await loadGraph(deps, mode);
-  const notes = [...loaded.notes];
+  const tLoad = Date.now();
+  notes.push(...loaded.notes);
   if (!loaded.graph.people.some((p) => p.id === req.leaverId)) notes.push(`Person ${req.leaverId} has no activity in the scanned data.`);
-  // Team lookup and the assignable-user checks are independent network calls, so they run together.
-  const [g, eligible] = mode === 'live'
-    ? await Promise.all([enrichTeams(deps, loaded.graph, req.leaverId, notes), assignability(deps, loaded.graph, req.leaverId, notes)])
-    : [loaded.graph, undefined];
+  let g = loaded.graph;
+  let eligible: ((itemId: string, personId: string) => boolean) | undefined;
+  let teamsMs = 0;
+  let assignMs = 0;
+  if (mode === 'live') {
+    const assignNotes: string[] = [];
+    const ta = Date.now();
+    const [team, el] = await Promise.all([teamsP!, assignability(deps, loaded.graph, req.leaverId, assignNotes).then((v) => { assignMs = Date.now() - ta; return v; })]);
+    teamsMs = team.ms;
+    notes.push(...teamsNotes, ...assignNotes);
+    g = applyTeam(loaded.graph, req.leaverId, team.v);
+    eligible = el;
+  }
+  const tNet = Date.now();
   const cap = Number.isFinite(req.maxPerPerson) ? Math.min(100, Math.floor(req.maxPerPerson!)) : 0;
   const plan = buildHandoverPlan(g, req, { ...(eligible ? { eligible } : {}), ...(cap > 0 ? { maxPerPerson: cap } : {}) });
+  const tEngine = Date.now();
   if (mode === 'live' && opts.persist !== false) await deps.store.set(`plan:${plan.planKey}`, plan);
+  console.log(`timing buildPlanFor loadGraph=${tLoad - t0}ms teams=${teamsMs}ms(overlaps load) assignability=${assignMs}ms netWait=${tNet - tLoad}ms engine=${tEngine - tNet}ms persist=${Date.now() - tEngine}ms total=${Date.now() - t0}ms`);
   return { plan, mode, partial: notes.length > 0, notes };
 }
 

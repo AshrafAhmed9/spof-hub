@@ -178,9 +178,15 @@ export async function filterVisible(api: ApiLike, itemIds: string[], retry?: Ret
     const batches: string[][] = [];
     for (let i = 0; i < ids.length; i += 100) batches.push(ids.slice(i, i + 100));
     let failed = 0;
-    for (let i = 0; i < batches.length; i += 6) {
-      await Promise.all(batches.slice(i, i + 6).map((b) => run(b).catch(() => { failed += b.length; })));
-    }
+    // A pool of 10 workers, so one slow batch does not hold up the next wave.
+    let next = 0;
+    const worker = async () => {
+      while (next < batches.length) {
+        const b = batches[next++]!;
+        await run(b).catch(() => { failed += b.length; });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(10, batches.length) }, worker));
     return failed;
   };
   const issueFailed = await inBatches(issues, async (batch) => {
