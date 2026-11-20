@@ -17,7 +17,7 @@ export interface Run { planKey: string; leaverName: string; at: number; done: nu
 const APPLY_BATCH = 5;
 
 type Phase = 'form' | 'review' | 'preview' | 'applying' | 'done';
-type Opt = { value: string; label: string; evidence?: string[] };
+type Opt = { value: string; label: string; evidence?: string[]; thin?: boolean };
 
 const label = (e: PlanEntry) => (e.kind === 'page' ? e.title : `${e.itemId} ${e.title}`);
 
@@ -77,7 +77,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
   const optionsFor = (e: PlanEntry): Opt[] => {
     const seen = new Set<string>();
     const out: Opt[] = [];
-    for (const s of [e.successor, ...e.alternates]) if (s && !seen.has(s.personId)) { seen.add(s.personId); out.push({ value: s.personId, label: s.name, evidence: s.evidence }); }
+    for (const s of [e.successor, ...e.alternates]) if (s && !seen.has(s.personId)) { seen.add(s.personId); out.push({ value: s.personId, label: s.name, evidence: s.evidence, thin: s.thinEvidence }); }
     for (const p of people ?? []) if (p.id !== res?.plan.leaverId && !seen.has(p.id)) { seen.add(p.id); out.push({ value: p.id, label: p.name, evidence: ['Picked by you'] }); }
     return out;
   };
@@ -240,6 +240,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
                                 </div>
                               </td>
                               <td data-label="Why this person">
+                                {cur?.thin && <div><span title="Little history on this component. Check before approving."><Lozenge>Thin evidence</Lozenge><span className="sr-only"> Little history on this component. Check before approving.</span></span></div>}
                                 {cur ? (cur.evidence?.[0] ?? 'No direct history on this work. Suggested from the people around it.') : <span className="subtle">No clear fit. Choose someone to approve.</span>}
                                 {cur && (cur.evidence?.length ?? 0) > 1 && <ul className="evidence">{cur.evidence!.slice(1).map((x, i) => <li key={i}>{x}</li>)}</ul>}
                               </td>

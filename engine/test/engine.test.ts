@@ -310,3 +310,24 @@ describe('fixture', () => {
     expect(fixtureOrg.items).toHaveLength(30);
   });
 });
+
+describe('thin evidence flag', () => {
+  const NOW_ = 1_700_000_000_000;
+  const mk = (n: number): Graph => ({
+    people: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }] as Graph['people'],
+    items: [{ id: 'I1', kind: 'workItem', title: 't', area: 'x', open: true }] as Graph['items'],
+    edges: [
+      ...Array.from({ length: n }, (_, i) => ({ person: 'a', item: 'I1', kind: 'commented', at: NOW_ - i * 1000, weight: 1 })),
+      ...Array.from({ length: 20 }, (_, i) => ({ person: 'b', item: 'I1', kind: 'commented', at: NOW_ - i * 1000, weight: 1 })),
+    ] as Graph['edges'],
+  });
+  it('flags a candidate whose every count is 2 or less', () => {
+    const s = suggestSuccessors(mk(2), 'I1', NOW_, { exclude: ['c'], k: 5 });
+    expect(s.find((x) => x.personId === 'a')!.thinEvidence).toBe(true);
+    expect(s.find((x) => x.personId === 'b')!.thinEvidence).toBe(false);
+  });
+  it('does not flag at 3', () => {
+    const s = suggestSuccessors(mk(3), 'I1', NOW_, { exclude: ['c'], k: 5 });
+    expect(s.find((x) => x.personId === 'a')!.thinEvidence).toBe(false);
+  });
+});

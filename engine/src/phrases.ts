@@ -9,7 +9,7 @@ export const PHRASES: Record<
   commented: { sole: 'commented', did: 'wrote', noun: 'comments', evidenceNoun: 'comments' },
   authored: { sole: 'authored work', did: 'authored', noun: 'contributions', evidenceNoun: 'contributions' },
   reviewed: { sole: 'reviewed', did: 'reviewed', noun: 'reviews', evidenceNoun: 'reviews' },
-  assigned: { sole: 'been assigned', did: 'was assigned', noun: 'assignments', evidenceNoun: 'assignments' },
+  assigned: { sole: 'been assigned', did: 'had', noun: 'assignments', evidenceNoun: 'assignments' },
   owns: { sole: 'been listed as owner', did: 'owns', noun: 'ownership entries', evidenceNoun: 'ownership entries' },
   linked: { sole: 'linked related work', did: 'linked', noun: 'links', evidenceNoun: 'links' },
 };

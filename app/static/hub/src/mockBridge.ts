@@ -47,7 +47,7 @@ function coverage(): CoverageResponse {
 
 const sc = (id: string, ev: string[], score = 0.5, load = 0.3): Successor => {
   const p = people.find((x) => x.id === id)!;
-  return { personId: id, name: p.name, score, ppr: score / 2, load, evidence: ev };
+  return { personId: id, name: p.name, score, ppr: score / 2, load, evidence: ev, thinEvidence: id === 'u-mei' };
 };
 const dana = sc('u-dana', ['Reviewed the last 3 pull requests in this service', 'Commented on 4 related issues'], 0.61, 0.35);
 const ravi = sc('u-ravi', ['On the same team', 'Light workload this month'], 0.44, 0.1);

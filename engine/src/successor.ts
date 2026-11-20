@@ -41,7 +41,12 @@ export interface Successor {
   ppr: number;
   load: number;
   evidence: string[];
+  /** True when every count behind this suggestion on the component is {@link THIN_EVIDENCE_MAX} or less. */
+  thinEvidence: boolean;
 }
+
+/** At or below this many events per kind, a suggestion rests on little history. */
+export const THIN_EVIDENCE_MAX = 2;
 
 const pKey = (id: string) => `p:${id}`;
 const iKey = (id: string) => `i:${id}`;
@@ -128,7 +133,7 @@ function buildEvidence(
   person: Person,
   onTeam: boolean,
   team: string | undefined,
-): string[] {
+): { lines: string[]; thin: boolean } {
   const areaIds = new Set(
     seed.area ? graph.items.filter((i) => i.area === seed.area).map((i) => i.id) : [seed.id],
   );
@@ -160,7 +165,8 @@ function buildEvidence(
     }
   }
   if (onTeam && team) out.push(`on the ${team} team`);
-  return out;
+  const thin = lines.every((l) => l.n <= THIN_EVIDENCE_MAX);
+  return { lines: out, thin };
 }
 
 /**
@@ -198,7 +204,8 @@ export function suggestSuccessors(
     const onTeam = !!opts.team && p.team === opts.team;
     const rel = maxPpr > 0 ? ppr / maxPpr : 0;
     const score = rel - loadWeight * load + (onTeam ? teamBonus : 0);
-    return { personId: p.id, name: p.name, score, ppr, load, evidence: buildEvidence(graph, edges, seed, p, onTeam, opts.team) };
+    const ev = buildEvidence(graph, edges, seed, p, onTeam, opts.team);
+    return { personId: p.id, name: p.name, score, ppr, load, evidence: ev.lines, thinEvidence: ev.thin };
   });
 
   return ranked
