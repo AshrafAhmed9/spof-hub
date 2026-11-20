@@ -7,7 +7,7 @@ import { absenceTimeline, buildHandoverPlan, explainConcentration, isBot, type G
 import { indexKeys, type ScanDeps } from './scan';
 import { loadSample, type SampleOrg } from './sample';
 import { TwgClient } from './twgClient';
-import { liftOf, mergeTwg } from './twgIndex';
+import { liftOf, mergeTwg, type TwgRecord } from './twgIndex';
 import type { IndexedItem } from './types';
 import type { CoverageResponse, TimelineRequest, TimelineResponse, IssueKnowledge, TeamworkGraphLift, Mode, PlanRequest, PlanResponse, RescanResult, SetupCheck, SetupStatus } from '../shared/contract';
 
@@ -56,13 +56,18 @@ export async function loadGraph(deps: Deps, mode: Mode): Promise<LoadedGraph> {
     return { graph: s.graph, now: s.asOf, partial: false, notes: [], mode };
   }
   const notes: string[] = [];
-  const recs = await deps.store.list<IndexedItem>('item:');
-  const people = (await deps.store.list<Person>('person:')).map((p) => p.value);
+  // Independent prefixes are read together; each one pages by cursor, so they cannot be split further.
+  const [recs, peopleRows, twgRecs] = await Promise.all([
+    deps.store.list<IndexedItem>('item:'),
+    deps.store.list<Person>('person:'),
+    deps.store.list<TwgRecord>('twg:rec:'),
+  ]);
+  const people = peopleRows.map((p) => p.value);
   if (recs.length === 0) {
     return { graph: { people: [], items: [], edges: [] }, now: deps.now(), partial: true, notes: ['The index is empty. Open Depth Chart in Jira and run a scan. An empty result here is not evidence that nothing is at risk.'], mode };
   }
   const restRecs = recs.map((r) => r.value);
-  const twg = await mergeTwg(deps, restRecs);
+  const twg = await mergeTwg(deps, restRecs, twgRecs.map((r) => r.value));
   // Only Jira keys and pages can be permission-checked with REST; PRs and goals are gated by viewer in mergeTwg.
   const vis = await cachedVisible(deps, [...restRecs.map((r) => r.item.id), ...twg.needsCheck]);
   notes.push(...vis.notes);
@@ -181,8 +186,10 @@ export async function buildPlanFor(deps: Deps, mode: Mode, req: PlanRequest, opt
   const loaded = await loadGraph(deps, mode);
   const notes = [...loaded.notes];
   if (!loaded.graph.people.some((p) => p.id === req.leaverId)) notes.push(`Person ${req.leaverId} has no activity in the scanned data.`);
-  const g = mode === 'live' ? await enrichTeams(deps, loaded.graph, req.leaverId, notes) : loaded.graph;
-  const eligible = mode === 'live' ? await assignability(deps, g, req.leaverId, notes) : undefined;
+  // Team lookup and the assignable-user checks are independent network calls, so they run together.
+  const [g, eligible] = mode === 'live'
+    ? await Promise.all([enrichTeams(deps, loaded.graph, req.leaverId, notes), assignability(deps, loaded.graph, req.leaverId, notes)])
+    : [loaded.graph, undefined];
   const cap = Number.isFinite(req.maxPerPerson) ? Math.min(100, Math.floor(req.maxPerPerson!)) : 0;
   const plan = buildHandoverPlan(g, req, { ...(eligible ? { eligible } : {}), ...(cap > 0 ? { maxPerPerson: cap } : {}) });
   if (mode === 'live' && opts.persist !== false) await deps.store.set(`plan:${plan.planKey}`, plan);

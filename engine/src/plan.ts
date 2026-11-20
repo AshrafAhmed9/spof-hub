@@ -2,7 +2,7 @@ import { DAY_MS, type Graph, type Item } from './model';
 import { explainRisk, type RiskBreakdown } from './explain';
 import { assignWithCapacity } from './assign';
 import { propagateRisk, type RiskOptions } from './propagation';
-import { suggestSuccessors, type Successor, type SuccessorOptions } from './successor';
+import { prepareSuccessors, suggestSuccessors, type Successor, type SuccessorOptions } from './successor';
 
 export interface PlanRequest {
   leaverId: string;
@@ -96,9 +96,14 @@ export function buildHandoverPlan(graph: Graph, req: PlanRequest, opts: PlanOpti
   const entries: PlanEntry[] = [];
   const { eligible, ...succOpts } = opts;
   const cap = opts.maxPerPerson;
+  // Built once: the contribution table, the person-item graph and the evidence counts do not depend on the item.
+  const index = risks.length > 0 ? prepareSuccessors(graph, req.from, succOpts) : undefined;
   const rank = (itemId: string, k: number, loadOverrides: Map<string, number>) =>
     suggestSuccessors(graph, itemId, req.from, {
       ...succOpts,
+      // Ranking only needs the order of people to settle; 1e-9 is far below any score gap and saves ~25% of the iterations.
+      epsilon: opts.epsilon ?? 1e-9,
+      ...(index ? { index } : {}),
       k,
       exclude: [req.leaverId, ...(opts.exclude ?? [])],
       loadOverrides,

@@ -205,8 +205,8 @@ function coveredByRest(restKeys: Set<string>, restPairs: Set<string>, e: Edge) {
   return e.kind === 'linked' ? restPairs.has(pairKey(e)) : restKeys.has(edgeKey(e));
 }
 
-export async function mergeTwg(deps: Pick<Deps, 'store' | 'viewerId' | 'now'>, rest: IndexedItem[]): Promise<MergedTwg> {
-  const recs = (await deps.store.list<TwgRecord>('twg:rec:')).map((r) => r.value);
+export async function mergeTwg(deps: Pick<Deps, 'store' | 'viewerId' | 'now'>, rest: IndexedItem[], preloaded?: TwgRecord[]): Promise<MergedTwg> {
+  const recs = preloaded ?? (await deps.store.list<TwgRecord>('twg:rec:')).map((r) => r.value);
   const restIds = new Set(rest.map((r) => r.item.id));
   const restKeys = new Set<string>();
   const restPairs = new Set<string>();
