@@ -1,6 +1,7 @@
 // Successor backtest runner (DEFINITIONS_SUCCESSOR.md). Reads succ_<PROJECT>.json from export_successor.py,
 // ranks the pool with the engine and the baselines using only comments at or before T, writes ranks_<PROJECT>.json.
 // Run: ../engine/node_modules/.bin/vite-node rank_successor.ts SPARK
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { suggestSuccessors, type Edge, type Graph } from '../engine/src/index';
 
@@ -18,6 +19,10 @@ for (const p of data.pairs) (byLeaver.get(p.L) ?? byLeaver.set(p.L, []).get(p.L)
 const itemByKey = new Map(data.items.map((i) => [i.key, i]));
 const allPeople = [...new Set(data.items.flatMap((i) => i.comments.map(([, p]) => p)))].sort();
 const out: Array<Record<string, unknown>> = [];
+// Contributor emails are written as hashed ids. Ranking uses the raw ids; only the output is hashed.
+const pid = (s: string) => (s.includes('@') ? 'p_' + createHash('sha256').update(s.toLowerCase()).digest('hex').slice(0, 10) : s);
+// Leaver order by raw id, so the bootstrap in summarize_successor.py resamples in the same order as before hashing.
+const leaverOrder = new Map([...byLeaver.keys()].sort().map((l, i) => [l, i]));
 let done = 0;
 
 for (const [L, pairs] of byLeaver) {
@@ -59,7 +64,7 @@ for (const [L, pairs] of byLeaver) {
     const lastOnItem = [...lastAt.keys()].filter((p) => poolSet.has(p)).sort((a, b) => lastAt.get(b)! - lastAt.get(a)! || (a < b ? -1 : 1));
     const ranked = suggestSuccessors(graph, pr.key, T * 1000, { k: pool.length, exclude: [L, ...exclude], ...(restart === undefined ? {} : { restart }) }).map((s) => s.personId);
     out.push({
-      L, key: pr.key, P: pr.P, n: pool.length,
+      L: pid(L), key: pr.key, P: pid(pr.P), n: pool.length, Lo: leaverOrder.get(L),
       engine: rankIn(withFallback(ranked)),
       active: rankIn(activeOrder),
       topOnItem: rankIn(withFallback(topOnItem)),

@@ -10,7 +10,7 @@ def load():
     rows = []
     for p in PROJECTS:
         for r in json.load(open(os.path.join(HERE, f"ranks_{p}.json"))):
-            r["project"] = p; r["leaver"] = p + ":" + r["L"]; rows.append(r)
+            r["project"] = p; r["leaver"] = p + ":" + r["L"]; r["lkey"] = (p, r.get("Lo", r["L"])); rows.append(r)
     return rows
 
 def metric(r, m, k):
@@ -28,7 +28,7 @@ def mean(rows, f): return sum(f(r) for r in rows) / len(rows) if rows else float
 def boot(rows, stat, n=2000):
     by = defaultdict(list)
     for r in rows: by[r["leaver"]].append(r)
-    ids = sorted(by); rng = random.Random(SEED); vals = []
+    ids = sorted(by, key=lambda l: by[l][0]["lkey"]); rng = random.Random(SEED); vals = []
     for _ in range(n):
         s = []
         for _ in ids: s += by[rng.choice(ids)]
