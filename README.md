@@ -2,6 +2,8 @@
 
 A Forge app for Jira that finds work only one person understands, and helps you cover it before they are away.
 
+Demo video (3 minutes): https://youtu.be/IGHZt2qwpzg
+
 Handover tools I found move assignees after someone has already left. This one starts earlier. It reads who actually answered questions and commented in each area (and, where Teamwork Graph has them, reviewed), and shows where one person holds most of it. It then suggests who could cover each item, lets you approve the changes, applies them, and re-scans to show what's left. Every change can be undone.
 
 ## What's in here
