@@ -323,7 +323,7 @@ export function Plans({ initialLeaver, mode, onRun, onRunUpdate, onSetup }: {
               {followErr != null && <ErrorPanel error={followErr} what="that" unchanged={false} />}
               <div className="row">
                 <PrimaryButton onClick={doRescan} isDisabled={busy !== null}>{busy === 'rescan' ? 'Re-scanning' : rescan ? 'Re-scan again' : 'Re-scan'}</PrimaryButton>
-                {result.done.length > 0 && (!undo || undo.failed.length > 0) && <Button onClick={doUndo} isDisabled={busy !== null}>{busy === 'undo' ? (undoProg ? `Undoing, ${undoProg.at} of ${undoProg.total}` : 'Undoing') : undo ? 'Undo again' : 'Undo this run'}</Button>}
+                {result.done.length > 0 && (!undo || undo.failed.length > 0) && <Button onClick={doUndo} isDisabled={busy !== null}>{busy === 'undo' ? (undoProg ? `Undoing, ${Math.min(99, Math.round((100 * undoProg.at) / Math.max(1, undoProg.total)))}%` : 'Undoing') : undo ? 'Undo again' : 'Undo this run'}</Button>}
               </div>
               {undo && (
                 <SectionMessage appearance={undo.failed.length ? 'warning' : 'success'} title={undo.failed.length ? `Undid ${undo.reverted}, but ${undo.failed.length} could not be put back` : `Undone. ${plural(undo.reverted, 'item')} put back as before.`}>

@@ -124,7 +124,7 @@ function Activity({ runs, out, setOut, onPlan, onUndone }: { runs: Run[]; out: R
                   <div className="subtle">{fmtTime(r.at)}, by you. {r.sample ? 'Nothing was written.' : `${r.done} done, ${r.failed} skipped.`}</div>
                 </div>
                 {!r.sample && !r.undone && r.done > 0 && (
-                  <div className="row"><Button onClick={() => undo(r.planKey)} isDisabled={busy !== null}>{busy === r.planKey ? (prog ? `Undoing, ${prog.at} of ${prog.total}` : 'Undoing') : res ? 'Undo again' : 'Undo this run'}</Button></div>
+                  <div className="row"><Button onClick={() => undo(r.planKey)} isDisabled={busy !== null}>{busy === r.planKey ? (prog ? `Undoing, ${Math.min(99, Math.round((100 * prog.at) / Math.max(1, prog.total)))}%` : 'Undoing') : res ? 'Undo again' : 'Undo this run'}</Button></div>
                 )}
                 {res && res.failed.length > 0 && (
                   <SectionMessage appearance="warning" title={`Undid ${res.reverted}, but ${res.failed.length} could not be put back`}>
