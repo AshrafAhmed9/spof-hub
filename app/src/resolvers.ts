@@ -3,11 +3,14 @@
 // Sample mode never writes: no KVS, no Jira, no queue.
 import { RESOLVERS } from '../shared/contract';
 import type { ApplyRequest, ApplyResult, CoverageResponse, PlanRequest, PlanResponse, RescanResult, ScanProgress, SetupStatus, UndoResult } from '../shared/contract';
-import { timeline, apply, buildPlanFor, clearCoverageCache, coverage, issueKnowledge, listPeople, loadGraph, modeOf, rescan, setupStatus, undo, type Deps } from './service';
+import { timeline, apply, listRuns, buildPlanFor, clearCoverageCache, coverage, issueKnowledge, listPeople, loadGraph, modeOf, rescan, setupStatus, undo, type Deps } from './service';
 import { getProgress, hasPending, pumpScan, startScan } from './scan';
 import { advanceTwg } from './twgIndex';
 import { SampleMissingError } from './sample';
 import { refreshSnapshot } from './snapshot';
+
+/** Operations undone per call. Each costs up to four Jira calls, so this stays well inside 25 s. */
+const UNDO_SLICE = 10;
 
 type Payload = Record<string, any> | undefined;
 
@@ -80,8 +83,10 @@ export function makeHandlers(deps: Deps) {
     [RESOLVERS.undoPlan]: async (p: Payload): Promise<UndoResult> => {
       if (modeOf(p) === 'sample') return { planKey: p?.planKey ?? '', reverted: 0, failed: [] };
       await clearCoverageCache(deps);
-      return undo(deps, p?.planKey);
+      return undo(deps, p?.planKey, { cursor: p?.cursor, limit: UNDO_SLICE });
     },
+
+    [RESOLVERS.listRuns]: (p?: Payload) => guard(() => listRuns(deps, modeOf(p))),
 
     [RESOLVERS.getIssueKnowledge]: (p?: Payload) => guard(() => issueKnowledge(deps, String(p?.key ?? ''))),
 

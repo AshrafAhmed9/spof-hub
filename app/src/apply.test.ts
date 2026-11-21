@@ -353,6 +353,24 @@ describe('suggestions the site would refuse', () => {
     expect(r.failed[0]!.reason).toMatch(/would not assign this issue/);
     expect(r.failed[0]!.reason).not.toMatch(/errorMessages/);
   });
+
+  it('does not count a refused item as put back on undo', async () => {
+    const { deps, plan, jira, e1, e2 } = await setup();
+    const orig = jira.api.asUser;
+    (jira.api as any).asUser = () => ({
+      ...orig(),
+      requestJira: async (r: any, init: any) => {
+        const path = typeof r === 'string' ? r : r.value;
+        if (path.includes('ABC-2') && /assignee/.test(path) && init?.method === 'PUT') return { status: 400, ok: false, json: async () => ({}), text: async () => '{}' };
+        return orig().requestJira(r, init);
+      },
+    });
+    const r = await applyPlan(deps, plan.planKey, [e1.operationKey, e2.operationKey]);
+    expect(r.failed).toHaveLength(1);
+    (jira.api as any).asUser = orig;
+    const u = await undoPlan(deps, plan.planKey);
+    expect(u).toEqual({ planKey: plan.planKey, reverted: 1, failed: [] });
+  });
 });
 
 describe('undoPlan', () => {

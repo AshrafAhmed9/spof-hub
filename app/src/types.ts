@@ -28,4 +28,17 @@ export interface OpRecord {
   at: number;
 }
 
+/** What the Activity page lists. Stored under `run:<planKey>`; counts are kept as key lists so a retried apply never counts twice. */
+export interface RunRecord {
+  planKey: string;
+  leaverId: string;
+  leaverName: string;
+  from: number;
+  to: number;
+  at: number;
+  doneKeys: string[];
+  failedKeys: string[];
+  undone: boolean;
+}
+
 export type { Edge, Item, Person };

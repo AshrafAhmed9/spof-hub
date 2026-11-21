@@ -47,6 +47,7 @@ async function collectAccounts(store: Store): Promise<Map<string, string>> {
     for (const e of r.value?.edges ?? []) add(e.person);
     for (const p of r.value?.people ?? []) add(p.id);
   }
+  for (const r of await store.list<any>('run:')) add(r.value?.leaverId);
   for (const r of await store.list<any>('op:')) {
     add(r.value?.toAccountId);
     add(r.value?.steps?.assignee?.prev);
@@ -90,6 +91,11 @@ async function erase(store: Store, closed: Set<string>): Promise<void> {
   // The snapshot and deltas hold copies of item records. Drop them so no erased id survives; the next read rebuilds from the scrubbed records.
   await clearSnapshot(store);
   for (const r of await store.list<unknown>('plan:')) {
+    const text = JSON.stringify(r.value);
+    if ([...closed].some((id) => text.includes(id))) await store.del(r.key);
+  }
+  // Run summaries hold the leaver's name, so one that names a closed account is dropped.
+  for (const r of await store.list<unknown>('run:')) {
     const text = JSON.stringify(r.value);
     if ([...closed].some((id) => text.includes(id))) await store.del(r.key);
   }

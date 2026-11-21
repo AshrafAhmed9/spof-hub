@@ -143,6 +143,7 @@ export async function mockInvoke(name: string, payload?: unknown): Promise<unkno
         }),
       };
     }
+    case 'listRuns': return [];
     case 'listPeople': return people;
     case 'getIssueKnowledge': {
       const key = String((payload as { key?: string } | undefined)?.key ?? 'PAY-1');

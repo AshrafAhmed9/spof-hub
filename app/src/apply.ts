@@ -4,7 +4,7 @@
 import { route, withRetry, type ApiLike, type Client, type Retry } from './api';
 import { stableKey, type HandoverPlan, type PlanEntry } from './engine';
 import type { Store } from './kv';
-import type { OpRecord, Person } from './types';
+import type { OpRecord, Person, RunRecord } from './types';
 import type { ApplyResult, UndoResult } from '../shared/contract';
 
 export interface ApplyDeps { api: ApiLike; store: Store; now: () => number; retry?: Retry }
@@ -52,6 +52,7 @@ export function commentText(plan: HandoverPlan, e: PlanEntry, toName: string, op
 }
 
 const opKeyStore = (k: string) => `op:${k}`;
+export const runKey = (planKey: string) => `run:${planKey}`;
 
 /** Same recipe as the engine's operationKey, so a cover person picked in the UI gets a key the server can recompute. */
 export const opKeyFor = (planKey: string, itemId: string, personId: string) => `op_${stableKey(`${planKey}|${itemId}|${personId}`)}`;
@@ -103,6 +104,12 @@ export async function applyPlan(deps: ApplyDeps, planKey: string, approved: stri
       result.failed.push({ operationKey: key, itemId: entry.itemId, reason: (e as Error).message });
     }
   }
+  const run = (await deps.store.get<RunRecord>(runKey(planKey))) ?? { planKey, leaverId: plan.leaverId, leaverName: plan.leaverName, from: plan.from, to: plan.to, at: deps.now(), doneKeys: [], failedKeys: [], undone: false };
+  const doneNow = new Set(result.done.map((d) => d.operationKey));
+  run.doneKeys = [...new Set([...run.doneKeys, ...doneNow])];
+  run.failedKeys = [...new Set([...run.failedKeys, ...result.failed.map((f) => f.operationKey)])].filter((k) => !run.doneKeys.includes(k));
+  if (doneNow.size) run.undone = false;
+  await deps.store.set(runKey(planKey), run);
   return result;
 }
 
@@ -185,15 +192,31 @@ async function findComment(c: Client, key: string, opKey: string, retry?: Retry)
   return null;
 }
 
-export async function undoPlan(deps: ApplyDeps, planKey: string): Promise<UndoResult> {
+export interface UndoStep { cursor?: number; limit?: number; budgetMs?: number }
+
+/**
+ * Undoes one slice of the run, newest op first, and returns `next` when more is left. The caller repeats with
+ * that cursor, so each call stays inside the platform time limit. A repeated slice is safe: finished steps are
+ * deleted from the op record as they go, and ops already undone are skipped. Failed ops stay as they were and
+ * are not retried within one pass (the cursor moves past them); "Undo again" starts a new pass.
+ */
+export async function undoPlan(deps: ApplyDeps, planKey: string, step: UndoStep = {}): Promise<UndoResult> {
   const out: UndoResult = { planKey, reverted: 0, failed: [] };
   // Newest first, so two ops on one item (A, then B) unwind in the right order.
   const keys = [...((await deps.store.get<string[]>(`planops:${planKey}`)) ?? [])].reverse();
   const c = deps.api.asUser();
-  for (const k of keys) {
+  const start = Math.max(0, Math.floor(step.cursor ?? 0));
+  const end = Math.min(keys.length, start + (step.limit ?? keys.length));
+  const t0 = Date.now();
+  let i = start;
+  for (; i < end; i++) {
+    if (i > start && Date.now() - t0 > (step.budgetMs ?? 15_000)) break;
+    const k = keys[i]!;
     const op = await deps.store.get<OpRecord>(opKeyStore(k));
     if (!op || op.status === 'undone') continue;
     const save = () => deps.store.set(opKeyStore(k), op);
+    // Ops Jira refused are cleaned up too, but they changed nothing, so they don't count as put back.
+    const changed = op.status === 'done';
     try {
       // Reverse order: watcher, comment, assignee.
       if (op.steps.watcher?.added) {
@@ -230,11 +253,22 @@ export async function undoPlan(deps: ApplyDeps, planKey: string): Promise<UndoRe
       }
       op.status = 'undone';
       await save();
-      out.reverted++;
+      if (changed) out.reverted++;
     } catch (e) {
       op.error = (e as Error).message;
       await save();
       out.failed.push({ itemId: op.itemId, reason: (e as Error).message });
+    }
+  }
+  if (i < keys.length) {
+    out.next = i;
+    out.total = keys.length;
+  } else {
+    // Last slice: the run counts as undone in storage only when every operation is.
+    const run = await deps.store.get<RunRecord>(runKey(planKey));
+    if (run && !run.undone) {
+      const ops = await Promise.all(keys.map((k) => deps.store.get<OpRecord>(opKeyStore(k))));
+      if (ops.every((o) => !o || o.status === 'undone')) await deps.store.set(runKey(planKey), { ...run, undone: true });
     }
   }
   return out;

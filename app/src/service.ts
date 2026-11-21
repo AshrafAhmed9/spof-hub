@@ -1,6 +1,6 @@
 // Shared logic behind resolvers and Rovo actions.
 import { route } from './api';
-import { applyPlan, undoPlan, type ApplyDeps } from './apply';
+import { applyPlan, runKey, undoPlan, type ApplyDeps, type UndoStep } from './apply';
 import { assembleGraph, filterVisible, pruneGraph } from './adapters';
 import { computeCoverage, currentAssignee, MIN_EVIDENCE, SINGLE_POINT, topPerItem } from './analysis';
 import { absenceTimeline, buildHandoverPlan, explainConcentration, isBot, type Graph, type HandoverPlan, type Person } from './engine';
@@ -9,8 +9,8 @@ import { DELTA_LIMIT, loadItems, writeSnapshot } from './snapshot';
 import { loadSample, type SampleOrg } from './sample';
 import { TwgClient } from './twgClient';
 import { liftOf, mergeTwg, type TwgRecord } from './twgIndex';
-import type { IndexedItem } from './types';
-import type { CoverageResponse, TimelineRequest, TimelineResponse, IssueKnowledge, TeamworkGraphLift, Mode, PlanRequest, PlanResponse, RescanResult, SetupCheck, SetupStatus } from '../shared/contract';
+import type { IndexedItem, OpRecord, RunRecord } from './types';
+import type { CoverageResponse, TimelineRequest, TimelineResponse, IssueKnowledge, TeamworkGraphLift, Mode, PlanRequest, PlanResponse, RescanResult, RunSummary, SetupCheck, SetupStatus } from '../shared/contract';
 
 export interface Deps extends ScanDeps {
   twg?: () => TwgClient;
@@ -280,14 +280,14 @@ export async function rescan(deps: Deps, mode: Mode, planKey: string): Promise<R
   const fresh = await buildPlanFor(deps, 'live', { leaverId: plan.leaverId, from: plan.from, to: plan.to }, { persist: false });
   // Ops are found through the keys stored at apply time, since a changed cover person has a different key from a fresh plan's.
   const ops = new Map<string, { status: string }>();
-  for (const k of (await deps.store.get<string[]>(`planops:${planKey}`)) ?? []) {
-    const op = await deps.store.get<{ itemId: string; status: string }>(`op:${k}`);
-    if (op && (op.status === 'done' || !ops.has(op.itemId))) ops.set(op.itemId, op);
-  }
+  const opRows = await Promise.all(((await deps.store.get<string[]>(`planops:${planKey}`)) ?? []).map((k) => deps.store.get<{ itemId: string; status: string }>(`op:${k}`)));
+  for (const op of opRows) if (op && (op.status === 'done' || !ops.has(op.itemId))) ops.set(op.itemId, op);
   let remaining = 0;
-  for (const e of fresh.plan.groups.flatMap((g) => g.entries)) {
+  const freshEntries = fresh.plan.groups.flatMap((g) => g.entries);
+  const recs = await Promise.all(freshEntries.map((e) => deps.store.get<IndexedItem>(`item:${e.itemId}`)));
+  for (const [i, e] of freshEntries.entries()) {
     const op = ops.get(e.itemId);
-    const rec = await deps.store.get<IndexedItem>(`item:${e.itemId}`);
+    const rec = recs[i];
     const assignee = rec?.meta.assigneeId ?? null;
     const resolved = op?.status === 'done' && assignee !== null && assignee !== plan.leaverId && !failedIds.has(e.itemId);
     if (!resolved) remaining++;
@@ -296,7 +296,7 @@ export async function rescan(deps: Deps, mode: Mode, planKey: string): Promise<R
 }
 
 export const apply = (deps: ApplyDeps, planKey: string, keys: string[], choices?: Record<string, string>) => applyPlan(deps, planKey, keys, choices);
-export const undo = (deps: ApplyDeps, planKey: string) => undoPlan(deps, planKey);
+export const undo = (deps: ApplyDeps, planKey: string, step?: UndoStep) => undoPlan(deps, planKey, step);
 
 export async function setupStatus(deps: Deps, mode: Mode): Promise<SetupStatus> {
   const checks: SetupCheck[] = [];
@@ -368,4 +368,34 @@ export async function timeline(deps: Deps, mode: Mode, req: TimelineRequest): Pr
       areas: s.areas.map((a) => ({ area: a.area, uncovered: a.uncovered, items: a.itemIds.map((id) => ({ id, title: titles.get(id) ?? id })) })),
     })),
   };
+}
+
+export const RUN_LIST_CAP = 20;
+
+/**
+ * Applied plans, newest first. Runs from before summaries were stored are found through their `planops:` list
+ * and rebuilt from the op records and the stored plan, so they can still be undone.
+ */
+export async function listRuns(deps: Deps, mode: Mode): Promise<RunSummary[]> {
+  if (mode === 'sample') return [];
+  const out: RunSummary[] = (await deps.store.list<RunRecord>('run:')).map(({ value: r }) => ({
+    planKey: r.planKey, leaverName: r.leaverName, at: r.at, done: r.doneKeys.length, failed: r.failedKeys.length, undone: r.undone,
+  }));
+  const known = new Set(out.map((r) => r.planKey));
+  for (const row of await deps.store.list<string[]>('planops:')) {
+    const planKey = row.key.slice('planops:'.length);
+    if (known.has(planKey) || !Array.isArray(row.value) || !row.value.length) continue;
+    const ops = (await Promise.all(row.value.map((k) => deps.store.get<OpRecord>(`op:${k}`)))).filter((o): o is OpRecord => !!o);
+    if (!ops.length) continue;
+    const plan = await deps.store.get<HandoverPlan>(`plan:${planKey}`);
+    out.push({
+      planKey,
+      leaverName: plan?.leaverName ?? 'Unknown person',
+      at: Math.max(...ops.map((o) => o.at)),
+      done: ops.filter((o) => o.status === 'done' || o.status === 'undone').length,
+      failed: ops.filter((o) => o.status === 'failed' || o.status === 'applying').length,
+      undone: ops.every((o) => o.status === 'undone'),
+    });
+  }
+  return out.sort((a, b) => b.at - a.at).slice(0, RUN_LIST_CAP);
 }

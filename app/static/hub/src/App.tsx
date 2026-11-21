@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type Dispatch, type SetStateAction } from 'react';
+import { lazy, Suspense, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
 import Lozenge from '@atlaskit/lozenge';
 import Button from '@atlaskit/button/new';
@@ -28,6 +28,12 @@ export function App() {
   const [epoch, setEpoch] = useState(0);
   const host = useHost();
 
+  // Past runs live in storage, so they survive a reload. Runs from this visit stay as they are.
+  useEffect(() => {
+    if (mode !== 'live' || host?.issueKey) return;
+    api.listRuns().then((past) => setRuns((x) => [...x, ...past.filter((p) => !x.some((r) => r.planKey === p.planKey)).map((p) => ({ ...p, sample: false }))]), () => {});
+  }, [mode, host?.issueKey]);
+
   const switchMode = (m: 'live' | 'sample') => { setApiMode(m); setMode(m); setNav({ view: 'hub' }); setTab(0); setEpoch((n) => n + 1); };
   const goPlan = (id: string) => { setLeaver(id); setTab(1); };
 
@@ -38,7 +44,7 @@ export function App() {
       case 0: return <Coverage key={`c${epoch}`} nav={nav} setNav={setNav} onPlan={goPlan} onSetup={() => setTab(4)} onSample={mode === 'live' ? () => switchMode('sample') : undefined} />;
       case 1: return (
         <Plans key={`p${epoch}`} initialLeaver={leaver} mode={mode} onSetup={() => setTab(4)}
-          onRun={(r) => setRuns((x) => [r, ...x])}
+          onRun={(r) => setRuns((x) => [r, ...x.filter((o) => o.planKey !== r.planKey)])}
           onRunUpdate={(k, p) => setRuns((x) => x.map((r) => (r.planKey === k ? { ...r, ...p } : r)))} />
       );
       case 2: return <Timeline key={`t${epoch}`} mode={mode} onSetup={() => setTab(4)} />;
@@ -70,9 +76,11 @@ export function App() {
 function Activity({ runs, out, setOut, onPlan, onUndone }: { runs: Run[]; out: Record<string, UndoResult | unknown>; setOut: Dispatch<SetStateAction<Record<string, UndoResult | unknown>>>; onPlan: () => void; onUndone: (planKey: string) => void }) {
   const h = useFocusHeading('activity');
   const [busy, setBusy] = useState<string | null>(null);
+  const [prog, setProg] = useState<{ at: number; total: number } | null>(null);
   const undo = (planKey: string) => {
     setBusy(planKey);
-    api.undoPlan(planKey).then(
+    setProg(null);
+    api.undoPlan(planKey, setProg).then(
       (r) => { setOut((o) => ({ ...o, [planKey]: r })); setBusy(null); if (r.failed.length === 0) onUndone(planKey); },
       (e) => { setOut((o) => ({ ...o, [planKey]: e })); setBusy(null); },
     );
@@ -81,13 +89,13 @@ function Activity({ runs, out, setOut, onPlan, onUndone }: { runs: Run[]; out: R
     <div className="stack">
       <div className="stack-sm">
         <h1 ref={h} tabIndex={-1}>Activity</h1>
-        <p className="subtle">Plans you applied during this visit.</p>
+        <p className="subtle">Plans you applied, newest first.</p>
       </div>
       <div className="note" role="note">
-        Runs from this visit are listed here, and Undo works from here. Runs from earlier visits aren't listed.
+        The 20 most recent runs are listed here, and Undo works from here.
       </div>
       {runs.length === 0 ? (
-        <EmptyState title="No runs in this visit" body="When you apply a plan, it shows up here with what was done and what was skipped.">
+        <EmptyState title="No runs yet" body="When you apply a plan, it shows up here with what was done and what was skipped.">
           <Button appearance="primary" onClick={onPlan}>Plan time off or leaving</Button>
         </EmptyState>
       ) : (
@@ -103,7 +111,7 @@ function Activity({ runs, out, setOut, onPlan, onUndone }: { runs: Run[]; out: R
                   <div className="subtle">{fmtTime(r.at)}, by you. {r.sample ? 'Nothing was written.' : `${r.done} done, ${r.failed} skipped.`}</div>
                 </div>
                 {!r.sample && !r.undone && r.done > 0 && (
-                  <div className="row"><Button onClick={() => undo(r.planKey)} isDisabled={busy !== null}>{busy === r.planKey ? 'Undoing' : res ? 'Undo again' : 'Undo this run'}</Button></div>
+                  <div className="row"><Button onClick={() => undo(r.planKey)} isDisabled={busy !== null}>{busy === r.planKey ? (prog ? `Undoing, ${prog.at} of ${prog.total}` : 'Undoing') : res ? 'Undo again' : 'Undo this run'}</Button></div>
                 )}
                 {res && res.failed.length > 0 && (
                   <SectionMessage appearance="warning" title={`Undid ${res.reverted}, but ${res.failed.length} could not be put back`}>

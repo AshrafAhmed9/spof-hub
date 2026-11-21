@@ -1,6 +1,6 @@
 import { RESOLVERS } from '../../../shared/contract';
 import type {
-  ApplyRequest, ApplyResult, CoverageResponse, IssueKnowledge, PlanRequest, PlanResponse,
+  ApplyRequest, ApplyResult, CoverageResponse, IssueKnowledge, RunSummary, PlanRequest, PlanResponse,
   RescanResult, ScanProgress, SetupStatus, TimelineRequest, TimelineResponse, UndoResult,
 } from '../../../shared/contract';
 
@@ -59,6 +59,27 @@ async function call<T>(name: string, payload?: unknown): Promise<T> {
   }
 }
 
+/** Undo runs in slices so each call stays inside the platform time limit. A slice that errors is repeated, which is safe because finished steps are skipped. */
+async function undoAll(planKey: string, onProgress?: (p: { at: number; total: number }) => void): Promise<UndoResult> {
+  const merged: UndoResult = { planKey, reverted: 0, failed: [] };
+  let cursor: number | undefined;
+  for (;;) {
+    let r: UndoResult | undefined;
+    for (let attempt = 0; !r; attempt++) {
+      try {
+        r = await call<UndoResult>(RESOLVERS.undoPlan, { planKey, cursor });
+      } catch (e) {
+        if (attempt >= 2) throw e;
+      }
+    }
+    merged.reverted += r.reverted;
+    merged.failed.push(...r.failed);
+    if (r.next === undefined) return merged;
+    cursor = r.next;
+    onProgress?.({ at: r.next, total: r.total ?? r.next });
+  }
+}
+
 export const api = {
   getSetupStatus: () => call<SetupStatus>(RESOLVERS.getSetupStatus),
   getCoverage: () => call<CoverageResponse>(RESOLVERS.getCoverage),
@@ -67,7 +88,8 @@ export const api = {
   buildPlan: (r: PlanRequest) => call<PlanResponse>(RESOLVERS.buildPlan, r),
   applyPlan: (r: ApplyRequest) => call<ApplyResult>(RESOLVERS.applyPlan, r),
   rescan: (planKey: string) => call<RescanResult>(RESOLVERS.rescan, { planKey }),
-  undoPlan: (planKey: string) => call<UndoResult>(RESOLVERS.undoPlan, { planKey }),
+  undoPlan: (planKey: string, onProgress?: (p: { at: number; total: number }) => void) => undoAll(planKey, onProgress),
+  listRuns: () => call<RunSummary[]>(RESOLVERS.listRuns),
   listPeople: () => call<Person[]>(RESOLVERS.listPeople),
   getTimeline: (r: TimelineRequest) => call<TimelineResponse>(RESOLVERS.getTimeline, r),
   getIssueKnowledge: (key: string) => call<IssueKnowledge>(RESOLVERS.getIssueKnowledge, { key }),

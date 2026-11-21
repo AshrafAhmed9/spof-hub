@@ -69,8 +69,11 @@ export interface ApplyResult {
   failed: { operationKey: string; itemId: string; reason: string }[];   // never swallowed
   skippedSample: boolean;       // sample mode previews only; no writes
 }
+/** One applied plan, for the Activity page. */
+export interface RunSummary { planKey: string; leaverName: string; at: number; done: number; failed: number; undone: boolean }
 export interface RescanResult { planKey: string; remainingAtRisk: number; before: number }
-export interface UndoResult { planKey: string; reverted: number; failed: { itemId: string; reason: string }[] }
+/** `next` is set when the run has more to undo: call again with it as `cursor`. `total` is the number of recorded operations. */
+export interface UndoResult { planKey: string; reverted: number; failed: { itemId: string; reason: string }[]; next?: number; total?: number }
 
 export interface ScanProgress { state: 'idle' | 'running' | 'done' | 'error'; done: number; total: number; message?: string; /** Teamwork Graph read progress, when that step ran. */ twg?: { done: number; total: number; failed: number }; /** True when the scan only advances while this page is open. */ needsPage?: boolean }
 
@@ -98,6 +101,7 @@ export const RESOLVERS = {
   applyPlan: 'applyPlan',               // (ApplyRequest) => ApplyResult
   rescan: 'rescan',                     // ({planKey}) => RescanResult
   undoPlan: 'undoPlan',                 // ({planKey}) => UndoResult
+  listRuns: 'listRuns',                 // () => RunSummary[] (newest first, at most 20)
   listPeople: 'listPeople',             // () => {id,name,team?}[]
   getIssueKnowledge: 'getIssueKnowledge', // ({key}) => IssueKnowledge
   getTimeline: 'getTimeline',           // (TimelineRequest) => TimelineResponse

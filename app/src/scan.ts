@@ -177,21 +177,35 @@ async function jiraList(deps: ScanDeps, ev: Extract<ScanEvent, { kind: 'jira-lis
   }
 }
 
+/** Runs fn over items with at most `n` in flight. */
+async function pool<T>(items: T[], n: number, fn: (x: T) => Promise<void>): Promise<void> {
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) await fn(items[i++]!);
+  }));
+}
+
 export async function indexKeys(deps: ScanDeps, keys: string[]): Promise<{ indexed: number; failed: Array<{ id: string; reason: string }> }> {
   const failed: Array<{ id: string; reason: string }> = [];
   let indexed = 0;
   const app = deps.api.asApp();
-  let issues: any[] = [];
-  try {
-    const q = keys.map((k) => `"${k.replace(/"/g, '')}"`).join(',');
-    issues = (await searchIssues(app, `key in (${q})`, JIRA_FIELDS, undefined, 100, deps.retry)).issues;
-  } catch (e) {
-    return { indexed: 0, failed: keys.map((id) => ({ id, reason: String((e as Error).message) })) };
+  const issues: any[] = [];
+  // One search returns at most 100 issues, so a longer list is read in slices.
+  for (let i = 0; i < keys.length; i += 100) {
+    const slice = keys.slice(i, i + 100);
+    try {
+      const q = slice.map((k) => `"${k.replace(/"/g, '')}"`).join(',');
+      issues.push(...(await searchIssues(app, `key in (${q})`, JIRA_FIELDS, undefined, 100, deps.retry)).issues);
+    } catch (e) {
+      for (const id of slice) failed.push({ id, reason: String((e as Error).message) });
+    }
   }
   const found = new Set(issues.map((i) => i.key));
-  for (const k of keys) if (!found.has(k)) failed.push({ id: k, reason: 'not found or no longer visible to the app' });
+  const searched = new Set(failed.map((f) => f.id));
+  for (const k of keys) if (!found.has(k) && !searched.has(k)) failed.push({ id: k, reason: 'not found or no longer visible to the app' });
   const people = new Map<string, Person>();
-  for (const issue of issues) {
+  // Each issue costs a comments and a changelog read, so a long list must not run them one after another.
+  await pool(issues, 8, async (issue) => {
     try {
       const built = await indexIssue(app, issue, deps.now(), deps.siteUrl, deps.retry);
       await putItem(deps.store, issue.key, built.record, deps.now());
@@ -200,19 +214,19 @@ export async function indexKeys(deps: ScanDeps, keys: string[]): Promise<{ index
     } catch (e) {
       failed.push({ id: issue.key, reason: String((e as Error).message) });
     }
-  }
+  });
   await savePeople(deps, [...people.values()]);
   return { indexed, failed };
 }
 
 async function savePeople(deps: ScanDeps, people: Person[]) {
-  for (const p of people) {
+  await pool(people, 8, async (p) => {
     const prev = await deps.store.get<Person>(`person:${p.id}`);
     // Keep a real display name over a placeholder that equals the id.
     // fetchedAt is the age of this personal data; the privacy sweep reports it to Atlassian.
     const merged = { ...prev, ...p, name: p.name !== p.id ? p.name : (prev?.name ?? p.name), fetchedAt: new Date(deps.now()).toISOString() };
     await deps.store.set(`person:${p.id}`, merged);
-  }
+  });
 }
 
 async function jiraChunk(deps: ScanDeps, ev: Extract<ScanEvent, { kind: 'jira-chunk' }>) {
