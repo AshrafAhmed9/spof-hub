@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { Component, lazy, Suspense, useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
 import Lozenge from '@atlaskit/lozenge';
 import Button from '@atlaskit/button/new';
@@ -15,6 +15,17 @@ import { fmtTime, plural } from './util';
 const Timeline = lazy(() => import('./Timeline').then((m) => ({ default: m.Timeline })));
 const Plans = lazy(() => import('./Plans').then((m) => ({ default: m.Plans })));
 const Setup = lazy(() => import('./Setup').then((m) => ({ default: m.Setup })));
+
+/** A render error in one tab shows the error panel instead of blanking the whole app. */
+class TabBoundary extends Component<{ children: ReactNode; what: string }, { error: unknown }> {
+  state: { error: unknown } = { error: null };
+  static getDerivedStateFromError(error: unknown) { return { error: error ?? new Error('Unknown error') }; }
+  componentDidCatch(error: unknown) { console.error('Tab render error:', error); }
+  render() {
+    if (this.state.error == null) return this.props.children;
+    return <ErrorPanel error={this.state.error} what={this.props.what} unchanged onRetry={() => this.setState({ error: null })} />;
+  }
+}
 
 const TABS = ['Coverage', 'Plans', 'Timeline', 'Activity', 'Setup'] as const;
 
@@ -62,9 +73,11 @@ export function App() {
           <div className="tabs-wrap"><TabList>{TABS.map((t) => <Tab key={t}>{t}</Tab>)}</TabList></div>
           {TABS.map((t, i) => (
             <TabPanel key={t}>
-              <Suspense fallback={<Loading label="Loading" rows={3} />}>
-                {tab === i && view(i)}
-              </Suspense>
+              <TabBoundary what={t.toLowerCase()} key={`${t}${epoch}`}>
+                <Suspense fallback={<Loading label="Loading" rows={3} />}>
+                  {tab === i && view(i)}
+                </Suspense>
+              </TabBoundary>
             </TabPanel>
           ))}
         </Tabs>
